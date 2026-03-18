@@ -6,13 +6,36 @@ const PADashboard = () => {
     const [activeTab, setActiveTab] = useState('schedule');
     const navigate = useNavigate();
     const userInfo = getUserInfo();
-    const hospital = localStorage.getItem('caresync_hospital') || 'Shifa International Hospital';
+    const [hospitalName, setHospitalName] = useState('Loading...');
 
     useEffect(() => {
-        if (!localStorage.getItem('caresync_user_token') || localStorage.getItem('caresync_user_role') !== 'pa') {
+        if (!userInfo.token || userInfo.role !== 'PA Admin') {
             navigate('/pa-login');
+            return;
         }
-    }, [navigate]);
+
+        const fetchHospitalDetails = async () => {
+            try {
+                const res = await fetch(`http://localhost:5000/api/hospitals`, {
+                    headers: { 'Authorization': `Bearer ${userInfo.token}` }
+                });
+                const data = await res.json();
+                
+                const myHospital = Array.isArray(data) ? data.find(h => h._id === userInfo.hospitalId) : null;
+                
+                if (myHospital) {
+                    setHospitalName(myHospital.name);
+                } else {
+                    setHospitalName('Unassigned PA Desk');
+                }
+            } catch (error) {
+                console.error("Failed to load hospital details");
+                setHospitalName('Error Loading PA Hub');
+            }
+        };
+
+        fetchHospitalDetails();
+    }, [navigate, userInfo]);
 
     const handleLogout = () => {
         logoutUser();
@@ -22,9 +45,9 @@ const PADashboard = () => {
     return (
         <div style={{ paddingBottom: '4rem' }}>
             <div style={{ background: 'var(--white)', padding: '1rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="hospital-name-display" style={{ fontWeight: 600, color: 'var(--primary-teal)' }}>{hospital}</span>
+                <span className="hospital-name-display" style={{ fontWeight: 600, color: 'var(--primary-teal)' }}>{hospitalName}</span>
                 <div style={{ fontSize: '0.9rem' }}>
-                    <i className="fas fa-user-nurse"></i> {userInfo.name}
+                    <i className="fas fa-user-circle"></i> {userInfo.email ? userInfo.email.split('@')[0] : 'PA Desk'}
                     <button onClick={handleLogout} className="btn btn-outline" style={{ marginLeft: '1rem', padding: '0.3rem 0.8rem' }}>Logout</button>
                 </div>
             </div>

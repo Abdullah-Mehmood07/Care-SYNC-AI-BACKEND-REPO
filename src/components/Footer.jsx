@@ -22,9 +22,13 @@ const Footer = () => {
                 <div style={{ flex: 1, minWidth: '250px' }}>
                     <h4>Quick Links</h4>
                     <ul style={{ color: 'var(--text-muted)', listStyle: 'none', padding: 0 }}>
-                        <li style={{ marginBottom: '0.5rem' }}><a href="#services">Our Services</a></li>
+                        <li style={{ marginBottom: '0.5rem' }}><a href="/#services">Our Services</a></li>
                         <li style={{ marginBottom: '0.5rem' }}><Link to="/">About Us</Link></li>
                         <li style={{ marginBottom: '0.5rem' }}><Link to="/patient-login">Patient Portal</Link></li>
+                        <li style={{ marginBottom: '0.5rem' }}><Link to="/lab-login">Lab Portal</Link></li>
+                        <li style={{ marginBottom: '0.5rem' }}><Link to="/pa-login">Doctor PA Portal</Link></li>
+                        <li style={{ marginBottom: '0.5rem' }}><Link to="/hospital-login">Hospital Admin Portal</Link></li>
+                        <li style={{ marginBottom: '0.5rem' }}><Link to="/web-admin">Web Admin Portal</Link></li>
                     </ul>
                 </div>
             </div>

@@ -6,32 +6,137 @@ const PatientDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const navigate = useNavigate();
     const userInfo = getUserInfo();
-    const hospital = localStorage.getItem('caresync_hospital') || 'Shifa International Hospital';
+    
+    // Data states
+    const [hospitals, setHospitals] = useState([]);
+    const [doctors, setDoctors] = useState([]);
+    const [doctorsGlobal, setDoctorsGlobal] = useState([]);
+    const [myAppointments, setMyAppointments] = useState([]);
+    
+    // Booking Form State
+    const [bookingData, setBookingData] = useState({
+        hospitalId: '',
+        doctorId: '',
+        department: 'General Medicine',
+        date: '',
+        timeSlot: '10:00 AM - 10:30 AM'
+    });
 
     // Simple auth check
     useEffect(() => {
-        if (!localStorage.getItem('caresync_user_token')) {
+        if (!userInfo.token || userInfo.role !== 'Patient') {
             navigate('/patient-login');
+            return;
         }
-    }, [navigate]);
+
+        // Fetch Required Data for Patient
+        const fetchInitialData = async () => {
+            try {
+                // 1. Fetch all hospitals for the booking dropdown
+                const hospRes = await fetch('http://localhost:5000/api/hospitals', {
+                    headers: { 'Authorization': `Bearer ${userInfo.token}` }
+                });
+                const hospData = await hospRes.json();
+                setHospitals(Array.isArray(hospData)? hospData : []);
+
+                // 2. Fetch User's Upcoming Appointments
+                const apptRes = await fetch('http://localhost:5000/api/appointments/my-appointments', {
+                    headers: { 'Authorization': `Bearer ${userInfo.token}` }
+                });
+                const apptData = await apptRes.json();
+                setMyAppointments(Array.isArray(apptData) ? apptData : []);
+
+                // 3. Fetch global doctor schedule for viewing
+                const globalDocRes = await fetch('http://localhost:5000/api/doctors/all', {
+                    headers: { 'Authorization': `Bearer ${userInfo.token}` }
+                });
+                const globalDocData = await globalDocRes.json();
+                setDoctorsGlobal(Array.isArray(globalDocData) ? globalDocData : []);
+
+            } catch (err) {
+                console.error("Failed to load patient static data", err);
+            }
+        };
+
+        fetchInitialData();
+    }, [navigate, userInfo]);
+
+    // When a patient selects a hospital in the booking form, we must fetch THAT hospital's doctors
+    const handleHospitalSelect = async (e) => {
+        const selectedHospitalId = e.target.value;
+        setBookingData({ ...bookingData, hospitalId: selectedHospitalId, doctorId: '' }); // Reset doctor
+
+        if (!selectedHospitalId) {
+            setDoctors([]);
+            return;
+        }
+
+        try {
+            const docRes = await fetch(`http://localhost:5000/api/doctors/hospital/${selectedHospitalId}`, {
+                headers: { 'Authorization': `Bearer ${userInfo.token}` }
+            });
+            const docData = await docRes.json();
+            setDoctors(Array.isArray(docData) ? docData : []);
+            if (docData.length > 0) {
+                setBookingData(prev => ({ ...prev, doctorId: docData[0]._id })); // Auto select first doc
+            }
+        } catch (error) {
+            console.error('Failed to fetch doctors', error);
+        }
+    };
 
     const handleLogout = () => {
         logoutUser();
         navigate('/');
     };
 
-    const handleBooking = (e) => {
+    const handleBooking = async (e) => {
         e.preventDefault();
-        alert('Appointment Request Sent! You can view it in your dashboard.');
-        setActiveTab('dashboard');
+        
+        if (!bookingData.hospitalId || !bookingData.doctorId || !bookingData.date) {
+            return alert("Please fill out all booking fields.");
+        }
+
+        try {
+            const res = await fetch('http://localhost:5000/api/appointments', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userInfo.token}`
+                },
+                body: JSON.stringify({
+                    doctorId: bookingData.doctorId,
+                    hospitalId: bookingData.hospitalId,
+                    date: bookingData.date,
+                    timeSlot: bookingData.timeSlot
+                })
+            });
+
+            if (res.ok) {
+                alert('Appointment Request Sent Successfully!');
+                // Refresh appointments
+                const apptRes = await fetch('http://localhost:5000/api/appointments/my-appointments', {
+                    headers: { 'Authorization': `Bearer ${userInfo.token}` }
+                });
+                const apptData = await apptRes.json();
+                setMyAppointments(Array.isArray(apptData) ? apptData : []);
+                
+                setActiveTab('dashboard');
+            } else {
+                const err = await res.json();
+                alert(`Booking Failed: ${err.message}`);
+            }
+        } catch (error) {
+            alert('Failed to connect to server.');
+        }
     };
 
     return (
         <div style={{ paddingBottom: '4rem' }}>
             <div style={{ background: 'var(--white)', padding: '1rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="hospital-name-display" style={{ fontWeight: 600, color: 'var(--primary-teal)' }}>{hospital}</span>
+                <span className="hospital-name-display" style={{ fontWeight: 600, color: 'var(--primary-teal)' }}>CareSync Network</span>
                 <div style={{ fontSize: '0.9rem' }}>
-                    <i className="fas fa-user"></i> {userInfo.name} ({userInfo.id})
+                    <i className="fas fa-user-circle"></i> {userInfo.email.split('@')[0]} <span style={{color: 'var(--text-muted)'}}>| GHID: {userInfo.id}</span>
                     <button onClick={handleLogout} className="btn btn-outline" style={{ marginLeft: '1rem', padding: '0.3rem 0.8rem' }}>Logout</button>
                 </div>
             </div>
@@ -81,30 +186,38 @@ const PatientDashboard = () => {
 
                             <h3>Upcoming Appointments</h3>
                             <div className="glass-card" style={{ padding: '1rem', marginTop: '1rem' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead>
-                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
-                                            <th style={{ padding: '10px' }}>Doctor</th>
-                                            <th>Specialty</th>
-                                            <th>Date & Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td style={{ padding: '10px' }}>Dr. Fatima Bibi</td>
-                                            <td>Cardiology</td>
-                                            <td>Dec 25, 10:00 AM</td>
-                                            <td><span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, background: '#DCFCE7', color: '#166534' }}>Confirmed</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td style={{ padding: '10px' }}>Dr. Omar Farooq</td>
-                                            <td>General Physician</td>
-                                            <td>Dec 28, 02:00 PM</td>
-                                            <td><span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, background: '#FEF2F2', color: '#991B1B' }}>Pending</span></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                {myAppointments.length === 0 ? <p>You have no upcoming appointments.</p> : (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid #eee' }}>
+                                                <th style={{ padding: '10px' }}>Doctor</th>
+                                                <th>Hospital</th>
+                                                <th>Date</th>
+                                                <th>Time</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {myAppointments.map(appt => (
+                                                <tr key={appt._id}>
+                                                    <td style={{ padding: '10px', fontWeight: 'bold' }}>{appt.doctorId?.name || 'Unknown'}</td>
+                                                    <td>{appt.hospitalId?.name || 'Unknown Facility'}</td>
+                                                    <td>{new Date(appt.date).toLocaleDateString()}</td>
+                                                    <td>{appt.timeSlot}</td>
+                                                    <td>
+                                                        <span style={{ 
+                                                            padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, 
+                                                            background: appt.status === 'Confirmed' ? '#DCFCE7' : '#FEF2F2', 
+                                                            color: appt.status === 'Confirmed' ? '#166534' : '#991B1B' 
+                                                        }}>
+                                                            {appt.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         </section>
                     )}
@@ -115,35 +228,49 @@ const PatientDashboard = () => {
                             <div className="glass-card" style={{ maxWidth: '600px' }}>
                                 <form onSubmit={handleBooking}>
                                     <div className="form-group" style={{ marginBottom: '1rem' }}>
-                                        <label>Select Department</label>
-                                        <select required style={{ marginBottom: '1rem' }}>
+                                        <label>Select Hospital Network</label>
+                                        <select required value={bookingData.hospitalId} onChange={handleHospitalSelect} style={{ marginBottom: '1rem', width: '100%', padding: '8px' }}>
+                                            <option value="">-- Choose Facility --</option>
+                                            {hospitals.map(h => (
+                                                <option key={h._id} value={h._id}>{h.name} ({h.city?.name || 'Local'})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <label>Select Department Option</label>
+                                        <select required value={bookingData.department} onChange={(e) => setBookingData({...bookingData, department: e.target.value})} style={{ marginBottom: '1rem', width: '100%', padding: '8px' }}>
                                             <option>General Medicine</option>
                                             <option>Cardiology</option>
                                             <option>Dermatology</option>
                                             <option>Pediatrics</option>
                                         </select>
                                     </div>
-                                    <div className="form-group">
-                                        <label>Select Doctor</label>
-                                        <select required style={{ marginBottom: '1rem' }}>
-                                            <option>Dr. Omar Farooq</option>
-                                            <option>Dr. Fatima Bibi</option>
-                                            <option>Dr. Usman Gondal</option>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <label>Select Available Doctor</label>
+                                        <select required disabled={!bookingData.hospitalId || doctors.length === 0} value={bookingData.doctorId} onChange={(e) => setBookingData({...bookingData, doctorId: e.target.value})} style={{ marginBottom: '1rem', width: '100%', padding: '8px' }}>
+                                            {doctors.length === 0 ? <option value="">No doctors available</option> : null}
+                                            {doctors.map(d => (
+                                                <option key={d._id} value={d._id}>{d.name} ({d.specialty})</option>
+                                            ))}
                                         </select>
                                     </div>
-                                    <div className="form-group">
-                                        <label>Date</label>
-                                        <input type="date" required style={{ marginBottom: '1rem' }} />
+                                    <div style={{ display: 'flex', gap: '1rem' }}>
+                                        <div className="form-group" style={{ flex: 1 }}>
+                                            <label>Date</label>
+                                            <input type="date" required value={bookingData.date} onChange={(e) => setBookingData({...bookingData, date: e.target.value})} style={{ marginBottom: '1rem', width: '100%', padding: '8px' }} />
+                                        </div>
+                                        <div className="form-group" style={{ flex: 1 }}>
+                                            <label>Time Slot</label>
+                                            <select required value={bookingData.timeSlot} onChange={(e) => setBookingData({...bookingData, timeSlot: e.target.value})} style={{ marginBottom: '1rem', width: '100%', padding: '8px' }}>
+                                                <option>10:00 AM - 10:30 AM</option>
+                                                <option>10:30 AM - 11:00 AM</option>
+                                                <option>11:00 AM - 11:30 AM</option>
+                                                <option>02:00 PM - 02:30 PM</option>
+                                                <option>04:00 PM - 04:30 PM</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div className="form-group">
-                                        <label>Time Slot</label>
-                                        <select required style={{ marginBottom: '1rem' }}>
-                                            <option>10:00 AM - 10:30 AM</option>
-                                            <option>10:30 AM - 11:00 AM</option>
-                                            <option>11:00 AM - 11:30 AM</option>
-                                        </select>
-                                    </div>
-                                    <button type="submit" className="btn btn-primary">Confirm Booking</button>
+                                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Confirm Booking via GHID</button>
                                 </form>
                             </div>
                         </section>
@@ -151,29 +278,25 @@ const PatientDashboard = () => {
 
                     {activeTab === 'schedule' && (
                         <section className="panel-section active">
-                            <h2>Real-Time Doctor Availability</h2>
+                            <h2>All Doctors Network Availability</h2>
                             <div style={{ marginTop: '1rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'white', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #E2E8F0', marginBottom: '1rem' }}>
-                                    <div style={{ width: '50px', height: '50px', background: '#eee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <i className="fas fa-user-md"></i>
+                                {doctorsGlobal.length === 0 ? <p>No doctors currently listed in the network.</p> : null}
+                                {doctorsGlobal.map(doc => (
+                                    <div key={doc._id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'white', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #E2E8F0', marginBottom: '1rem' }}>
+                                        <div style={{ width: '50px', height: '50px', background: '#eee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <i className="fas fa-user-md"></i>
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <h4>{doc.name}</h4>
+                                            <p className="text-muted">{doc.specialty} - {doc.hospital?.name || 'Unassigned Facility'}</p>
+                                        </div>
+                                        {doc.onCall ? (
+                                            <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, background: '#FEF2F2', color: '#991B1B' }}>Emergency / In Surgery</span>
+                                        ) : (
+                                            <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, background: '#DCFCE7', color: '#166534' }}>Available</span>
+                                        )}
                                     </div>
-                                    <div style={{ flex: 1 }}>
-                                        <h4>Dr. Fatima Bibi</h4>
-                                        <p className="text-muted">Cardiologist - Room 302</p>
-                                    </div>
-                                    <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, background: '#DCFCE7', color: '#166534' }}>On Duty</span>
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'white', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #E2E8F0', marginBottom: '1rem' }}>
-                                    <div style={{ width: '50px', height: '50px', background: '#eee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <i className="fas fa-user-md"></i>
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <h4>Dr. Usman Gondal</h4>
-                                        <p className="text-muted">Neurologist - Room 205</p>
-                                    </div>
-                                    <span style={{ padding: '4px 8px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600, background: '#FEF2F2', color: '#991B1B' }}>In Surgery</span>
-                                </div>
+                                ))}
                             </div>
                         </section>
                     )}

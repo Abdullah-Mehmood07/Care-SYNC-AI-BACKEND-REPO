@@ -3,20 +3,47 @@ import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../utils/auth';
 
 const HospitalLogin = () => {
-    const [email, setEmail] = useState('admin@hospital.com');
-    const [password, setPassword] = useState('admin123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        loginUser('hospital', email);
-        navigate('/hospital-dashboard');
+        setError('');
+        
+        try {
+            const res = await fetch('http://localhost:5000/api/users/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                // Security check: Ensure they are actually a Hospital Admin
+                if (data.role !== 'Hospital Admin') {
+                    setError('Access Denied: You are not authorized as a Hospital Admin.');
+                    return;
+                }
+                
+                loginUser(data); // Save real JWT and info to auth.js
+                navigate('/hospital-dashboard');
+            } else {
+                setError(data.message || 'Login failed');
+            }
+        } catch (err) {
+            setError('Failed to connect to the server. Is the backend running?');
+        }
     };
 
     return (
         <div className="auth-container glass-card" style={{ maxWidth: '450px', margin: '4rem auto', textAlign: 'center' }}>
             <h2><i className="fas fa-hospital"></i> Hospital Admin Portal</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Manage doctors, services, and hospital settings.</p>
+
+            {error && <div style={{ color: 'red', marginBottom: '1rem', padding: '10px', background: '#ffebee', borderRadius: '5px' }}>{error}</div>}
 
             <form onSubmit={handleLogin}>
                 <div className="form-group" style={{ marginBottom: '1rem' }}>

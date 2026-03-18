@@ -5,13 +5,37 @@ import { getUserInfo, logoutUser } from '../utils/auth';
 const LabDashboard = () => {
     const navigate = useNavigate();
     const userInfo = getUserInfo();
-    const hospital = localStorage.getItem('caresync_hospital') || 'Shifa International Hospital';
+    const [hospitalName, setHospitalName] = useState('Loading...');
 
     useEffect(() => {
-        if (!localStorage.getItem('caresync_user_token') || localStorage.getItem('caresync_user_role') !== 'lab') {
+        if (!userInfo.token || userInfo.role !== 'Lab Admin') {
             navigate('/lab-login');
+            return;
         }
-    }, [navigate]);
+
+        const fetchHospitalDetails = async () => {
+            try {
+                const res = await fetch(`http://localhost:5000/api/hospitals`, {
+                    headers: { 'Authorization': `Bearer ${userInfo.token}` }
+                });
+                const data = await res.json();
+                
+                // Find our specific hospital using the ID connected to this Lab Admin
+                const myHospital = Array.isArray(data) ? data.find(h => h._id === userInfo.hospitalId) : null;
+                
+                if (myHospital) {
+                    setHospitalName(myHospital.name);
+                } else {
+                    setHospitalName('Unassigned Laboratory');
+                }
+            } catch (error) {
+                console.error("Failed to load hospital details");
+                setHospitalName('Error Loading Laboratory');
+            }
+        };
+
+        fetchHospitalDetails();
+    }, [navigate, userInfo]);
 
     const handleLogout = () => {
         logoutUser();
@@ -26,9 +50,9 @@ const LabDashboard = () => {
     return (
         <div style={{ paddingBottom: '4rem' }}>
             <div style={{ background: 'var(--white)', padding: '1rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="hospital-name-display" style={{ fontWeight: 600, color: 'var(--primary-teal)' }}>{hospital}</span>
+                <span className="hospital-name-display" style={{ fontWeight: 600, color: 'var(--primary-teal)' }}>{hospitalName}</span>
                 <div style={{ fontSize: '0.9rem' }}>
-                    <i className="fas fa-user"></i> {userInfo.name}
+                    <i className="fas fa-user-circle"></i> {userInfo.email ? userInfo.email.split('@')[0] : 'Lab Tech'}
                     <button onClick={handleLogout} className="btn btn-outline" style={{ marginLeft: '1rem', padding: '0.3rem 0.8rem' }}>Logout</button>
                 </div>
             </div>
