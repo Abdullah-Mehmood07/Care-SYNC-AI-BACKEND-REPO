@@ -7,6 +7,7 @@ const PADashboard = () => {
     const navigate = useNavigate();
     const userInfo = getUserInfo();
     const [hospitalName, setHospitalName] = useState('Loading...');
+    const [appointments, setAppointments] = useState([]);
 
     useEffect(() => {
         if (!userInfo.token || userInfo.role !== 'PA Admin') {
@@ -36,6 +37,49 @@ const PADashboard = () => {
 
         fetchHospitalDetails();
     }, [navigate, userInfo]);
+
+    useEffect(() => {
+        if (activeTab === 'appointments') {
+            const fetchAppointments = async () => {
+                try {
+                    const res = await fetch(`http://localhost:5000/api/appointments/hospital`, {
+                        headers: { 'Authorization': `Bearer ${userInfo.token}` }
+                    });
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        setAppointments(data);
+                    }
+                } catch (error) {
+                    console.error("Failed to load appointments");
+                }
+            };
+            fetchAppointments();
+        }
+    }, [activeTab, userInfo.token]);
+
+    const updateAppointmentStatus = async (id, status) => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/appointments/${id}/status`, {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `Bearer ${userInfo.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status })
+            });
+
+            if (res.ok) {
+                setAppointments(appointments.map(app => 
+                    app._id === id ? { ...app, status } : app
+                ));
+                alert(`Appointment ${status} successfully.`);
+            } else {
+                alert(`Failed to update appointment.`);
+            }
+        } catch (error) {
+           console.error("Failed to update status", error);
+        }
+    };
 
     const handleLogout = () => {
         logoutUser();
@@ -122,15 +166,33 @@ const PADashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr>
-                                            <td style={{ padding: '10px' }}>Mr. Ahmed Ali</td>
-                                            <td>Dr. Fatima Bibi</td>
-                                            <td>10:00 AM</td>
-                                            <td>
-                                                <button className="btn btn-primary" style={{ padding: '5px 10px', fontSize: '0.8rem', marginRight: '5px' }}>Approve</button>
-                                                <button className="btn btn-outline" style={{ padding: '5px 10px', fontSize: '0.8rem' }}>Decline</button>
-                                            </td>
-                                        </tr>
+                                        {appointments.length > 0 ? (
+                                            appointments.map((appt) => (
+                                                <tr key={appt._id} style={{ borderBottom: '1px solid #eee' }}>
+                                                    <td style={{ padding: '10px' }}>{appt.patientId?.name || appt.patientId?.email || 'Unknown Patient'}</td>
+                                                    <td>{appt.doctorId?.name || 'Unknown Doctor'}</td>
+                                                    <td>
+                                                        {appt.date ? new Date(appt.date).toLocaleDateString() : ''} {appt.timeSlot} <br/>
+                                                        <small style={{ color: appt.status === 'Pending' ? '#F59E0B' : (appt.status === 'Confirmed' ? '#10B981' : '#EF4444') }}>Status: {appt.status}</small>
+                                                    </td>
+                                                    <td>
+                                                        {appt.status === 'Pending' && (
+                                                            <>
+                                                                <button onClick={() => updateAppointmentStatus(appt._id, 'Confirmed')} className="btn btn-primary" style={{ padding: '5px 10px', fontSize: '0.8rem', marginRight: '5px' }}>Approve</button>
+                                                                <button onClick={() => updateAppointmentStatus(appt._id, 'Cancelled')} className="btn btn-outline" style={{ padding: '5px 10px', fontSize: '0.8rem' }}>Decline</button>
+                                                            </>
+                                                        )}
+                                                        {appt.status !== 'Pending' && (
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{appt.status}</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="4" style={{ padding: '10px', textAlign: 'center' }}>No appointments found.</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

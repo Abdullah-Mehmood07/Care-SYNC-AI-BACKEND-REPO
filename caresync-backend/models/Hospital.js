@@ -12,6 +12,24 @@ const hospitalSchema = new mongoose.Schema(
             required: true,
             ref: 'City'
         },
+        address: {
+            type: String,
+            required: [true, 'Hospital address is required'],
+            trim: true
+        },
+        phone: {
+            type: String,
+            trim: true
+        },
+        email: {
+            type: String,
+            trim: true
+        },
+        type: {
+            type: String,
+            enum: ['General', 'Specialized', 'Clinic', 'Other'],
+            default: 'General'
+        },
         status: {
             type: String,
             required: true,

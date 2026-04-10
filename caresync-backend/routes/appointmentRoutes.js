@@ -63,7 +63,7 @@ router.get('/hospital', protect, hospitalAdminOnly, async (req, res) => {
         // Fetch all appointments linked ONLY to the logged-in admin's hospital
         const appointments = await Appointment.find({ hospitalId: req.user.hospitalId })
             .populate('doctorId', 'name specialty')
-            .populate('patientId', 'email'); // Or grab any other user details we added
+            .populate('patientId', 'name email'); // Grab name and email
             
         res.json(appointments);
     } catch (error) {

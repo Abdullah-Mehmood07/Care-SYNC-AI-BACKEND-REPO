@@ -19,6 +19,7 @@ const createMasterAdmin = async () => {
         }
 
         const user = await User.create({
+            name: 'System Admin',
             email: adminEmail,
             password: 'superadmin123', // Hardcoded initial password
             role: 'Web Admin'

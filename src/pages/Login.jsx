@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../utils/auth';
 
-const PatientLogin = () => {
+const Login = () => {
   const [mode, setMode] = useState('login'); // login or register
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [nationalId, setNationalId] = useState(''); // Required for Patient GHID generation
+  const [nationalId, setNationalId] = useState(''); // Required for Patient registration
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -25,17 +25,30 @@ const PatientLogin = () => {
         const data = await res.json();
 
         if (res.ok) {
-            if (data.role !== 'Patient') {
-                setError('Access Denied: Invalid patient credentials.');
-                return;
-            }
-            
-            // Note: Since we don't have a 'name' field in our DB yet, we just store what we have.
-            // A full production app would expand the User model to store `name` as well.
             localStorage.setItem('caresync_user_name', data.email.split('@')[0]);
-            
             loginUser(data);
-            navigate('/patient-dashboard');
+            
+            // Redirect based on role
+            switch (data.role) {
+                case 'Patient':
+                    navigate('/patient-dashboard');
+                    break;
+                case 'Web Admin':
+                    navigate('/admin-dashboard');
+                    break;
+                case 'Hospital Admin':
+                    navigate('/hospital-dashboard');
+                    break;
+                case 'Lab Admin':
+                    navigate('/lab-dashboard');
+                    break;
+                case 'PA Admin':
+                    navigate('/pa-dashboard');
+                    break;
+                default:
+                    navigate('/'); // Fallback
+                    break;
+            }
         } else {
             setError(data.message || 'Login failed');
         }
@@ -78,9 +91,9 @@ const PatientLogin = () => {
 
   return (
     <div className="auth-container glass-card" style={{ maxWidth: '450px', margin: '4rem auto', textAlign: 'center' }}>
-      <h2 id="form-title">{mode === 'login' ? 'Patient Portal' : 'Patient Registration'}</h2>
+      <h2 id="form-title">{mode === 'login' ? 'Login Portal' : 'Patient Registration'}</h2>
       <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-        Access your health records and book appointments.
+        {mode === 'login' ? 'Access your dashboard' : 'Create a patient account to access your health records.'}
       </p>
 
       {error && <div style={{ color: 'red', marginBottom: '1rem', padding: '10px', background: '#ffebee', borderRadius: '5px' }}>{error}</div>}
@@ -107,7 +120,7 @@ const PatientLogin = () => {
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Secure Login</button>
           <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-            Don't have an account?{' '}
+            New patient?{' '}
             <span role="button" tabIndex={0} onClick={() => setMode('register')} style={{ color: 'var(--primary-teal)', fontWeight: '600', cursor: 'pointer' }}>
               Register Here
             </span>
@@ -167,4 +180,4 @@ const PatientLogin = () => {
   );
 };
 
-export default PatientLogin;
+export default Login;

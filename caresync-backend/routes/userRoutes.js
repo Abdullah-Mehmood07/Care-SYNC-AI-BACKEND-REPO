@@ -54,7 +54,8 @@ router.post('/login', async (req, res) => {
             res.status(401).json({ message: 'Invalid email or password' });
         }
     } catch (error) {
-        res.status(500).json({ message: 'Server Authentication Error' });
+        console.error('Login Error:', error);
+        res.status(500).json({ message: 'Server Authentication Error. Check backend logs for details.' });
     }
 });
 
@@ -144,6 +145,38 @@ router.post('/', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(400).json({ message: 'Error registering user' });
+    }
+});
+
+// @desc    Get all users
+// @route   GET /api/users
+// @access  Private/Web Admin
+router.get('/', protect, adminOnly, async (req, res) => {
+    try {
+        const users = await User.find({}).populate('hospitalId', 'name').select('-password');
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error fetching users' });
+    }
+});
+
+// @desc    Delete user
+// @route   DELETE /api/users/:id
+// @access  Private/Web Admin
+router.delete('/:id', protect, adminOnly, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (user) {
+            if (user.role === 'Web Admin' && user.email === 'superadmin@caresync.com') {
+                return res.status(400).json({ message: 'Cannot delete master admin' });
+            }
+            await User.findByIdAndDelete(req.params.id);
+            res.json({ message: 'User removed' });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error deleting user' });
     }
 });
 

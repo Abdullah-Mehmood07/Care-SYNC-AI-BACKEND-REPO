@@ -12,11 +12,12 @@ const AdminDashboard = () => {
     // Data States
     const [cities, setCities] = useState([]);
     const [hospitals, setHospitals] = useState([]);
+    const [users, setUsers] = useState([]);
 
     // Form States
     const [newCityName, setNewCityName] = useState('');
-    const [newHospitalData, setNewHospitalData] = useState({ name: '', city: '', status: 'Active' });
-    const [newUserData, setNewUserData] = useState({ email: '', password: '', role: 'Hospital Admin', hospitalId: '' });
+    const [newHospitalData, setNewHospitalData] = useState({ name: '', city: '', address: '', phone: '', email: '', type: 'General', status: 'Active' });
+    const [newUserData, setNewUserData] = useState({ name: '', email: '', password: '', role: 'Hospital Admin', hospitalId: '' });
 
     useEffect(() => {
         // Enforce basic admin auth before rendering real data using the real token
@@ -25,6 +26,7 @@ const AdminDashboard = () => {
         } else {
             fetchCities();
             fetchHospitals();
+            fetchUsers();
         }
     }, [navigate, userInfo.token, userInfo.role]);
 
@@ -55,6 +57,18 @@ const AdminDashboard = () => {
             setHospitals(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch hospitals', error);
+        }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch(`${API_URL}/users`, {
+                headers: { 'Authorization': `Bearer ${userInfo.token}` }
+            });
+            const data = await res.json();
+            setUsers(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to fetch users', error);
         }
     };
 
@@ -97,7 +111,7 @@ const AdminDashboard = () => {
             });
 
             if (res.ok) {
-                setNewHospitalData({ name: '', city: '', status: 'Active' });
+                setNewHospitalData({ name: '', city: '', address: '', phone: '', email: '', type: 'General', status: 'Active' });
                 fetchHospitals();
                 alert('Hospital added successfully!');
             } else {
@@ -124,7 +138,8 @@ const AdminDashboard = () => {
             const data = await res.json();
             
             if (res.ok) {
-                setNewUserData({ email: '', password: '', role: 'Hospital Admin', hospitalId: '' });
+                setNewUserData({ name: '', email: '', password: '', role: 'Hospital Admin', hospitalId: '' });
+                fetchUsers();
                 alert(`User ${data.email} created successfully as a ${data.role}!`);
             } else {
                 alert(`Error: ${data.message}`);
@@ -156,6 +171,24 @@ const AdminDashboard = () => {
                 headers: { 'Authorization': `Bearer ${userInfo.token}` }
             });
             fetchHospitals();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleDeleteUser = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this user?")) return;
+        try {
+            const res = await fetch(`${API_URL}/users/${id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${userInfo.token}` }
+            });
+            if (res.ok) {
+                fetchUsers();
+            } else {
+                const data = await res.json();
+                alert(`Error: ${data.message}`);
+            }
         } catch (error) {
             console.error(error);
         }
@@ -227,12 +260,23 @@ const AdminDashboard = () => {
 
                             <form onSubmit={handleAddHospital} className="glass-card" style={{ marginBottom: '2rem', display: 'flex', gap: '10px', flexDirection: 'column', padding: '1.5rem' }}>
                                 <h4>Add New Hospital</h4>
-                                <input type="text" placeholder="Hospital Name" value={newHospitalData.name} onChange={(e) => setNewHospitalData({...newHospitalData, name: e.target.value})} required />
-                                <select value={newHospitalData.city} onChange={(e) => setNewHospitalData({...newHospitalData, city: e.target.value})} required>
-                                    <option value="">-- Choose City --</option>
-                                    {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                                </select>
-                                <select value={newHospitalData.status} onChange={(e) => setNewHospitalData({...newHospitalData, status: e.target.value})}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                    <input type="text" placeholder="Hospital Name" value={newHospitalData.name} onChange={(e) => setNewHospitalData({...newHospitalData, name: e.target.value})} required />
+                                    <select value={newHospitalData.city} onChange={(e) => setNewHospitalData({...newHospitalData, city: e.target.value})} required>
+                                        <option value="">-- Choose City --</option>
+                                        {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                    </select>
+                                    <input type="text" placeholder="Address" value={newHospitalData.address} onChange={(e) => setNewHospitalData({...newHospitalData, address: e.target.value})} required />
+                                    <input type="text" placeholder="Phone Number" value={newHospitalData.phone} onChange={(e) => setNewHospitalData({...newHospitalData, phone: e.target.value})} />
+                                    <input type="email" placeholder="Email (Optional)" value={newHospitalData.email} onChange={(e) => setNewHospitalData({...newHospitalData, email: e.target.value})} />
+                                    <select value={newHospitalData.type} onChange={(e) => setNewHospitalData({...newHospitalData, type: e.target.value})}>
+                                        <option value="General">General</option>
+                                        <option value="Specialized">Specialized</option>
+                                        <option value="Clinic">Clinic</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <select value={newHospitalData.status} onChange={(e) => setNewHospitalData({...newHospitalData, status: e.target.value})} style={{ width: '50%' }}>
                                     <option value="Active">Active</option>
                                     <option value="Inactive">Inactive</option>
                                 </select>
@@ -244,8 +288,10 @@ const AdminDashboard = () => {
                                     <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                                         <thead>
                                             <tr style={{ borderBottom: '1px solid #eee' }}>
-                                                <th style={{ padding: '10px' }}>Hospital Name</th>
+                                                <th style={{ padding: '10px' }}>Hospital Details</th>
                                                 <th>City</th>
+                                                <th>Type</th>
+                                                <th>Contact</th>
                                                 <th>Status</th>
                                                 <th>Actions</th>
                                             </tr>
@@ -253,8 +299,13 @@ const AdminDashboard = () => {
                                         <tbody>
                                             {hospitals.map(h => (
                                                 <tr key={h._id}>
-                                                    <td style={{ padding: '10px' }}>{h.name}</td>
+                                                    <td style={{ padding: '10px' }}>
+                                                        <strong>{h.name}</strong><br/>
+                                                        <small style={{color:'var(--text-muted)'}}>{h.address}</small>
+                                                    </td>
                                                     <td>{h.city?.name || 'Unknown'}</td>
+                                                    <td>{h.type || 'General'}</td>
+                                                    <td>{h.phone || 'N/A'}<br/><small>{h.email || ''}</small></td>
                                                     <td style={{ color: h.status === 'Active' ? 'green' : 'red' }}>{h.status}</td>
                                                     <td><button onClick={() => handleDeleteHospital(h._id)} className="btn btn-outline" style={{ fontSize: '0.7rem', color: 'red', borderColor: 'red' }}>Delete</button></td>
                                                 </tr>
@@ -273,6 +324,15 @@ const AdminDashboard = () => {
                             <div className="glass-card">
                                 <p>Create Admin accounts for hospital managers.</p>
                                 <form style={{ marginTop: '1rem' }} onSubmit={handleAddUser}>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <input 
+                                            type="text" 
+                                            placeholder="User Full Name" 
+                                            required 
+                                            value={newUserData.name}
+                                            onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
+                                        />
+                                    </div>
                                     <div className="form-group" style={{ marginBottom: '1rem' }}>
                                         <input 
                                             type="email" 
@@ -303,13 +363,16 @@ const AdminDashboard = () => {
                                     
                                     {/* Only show hospital select if they are creating a Hospital Admin */}
                                     {newUserData.role === 'Hospital Admin' && (
-                                        <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <div className="form-group" style={{ marginBottom: '1rem', background: '#f0fdf4', padding: '1rem', border: '1px solid #bbf7d0', borderRadius: '5px' }}>
+                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#166534' }}>
+                                                <i className="fas fa-hospital"></i> Required: Assign to a specific Hospital
+                                            </label>
                                             <select 
                                                 required
                                                 value={newUserData.hospitalId}
                                                 onChange={(e) => setNewUserData({...newUserData, hospitalId: e.target.value})}
                                             >
-                                                <option value="">-- Assign to Hospital --</option>
+                                                <option value="">-- Choose Hospital --</option>
                                                 {hospitals.map(h => <option key={h._id} value={h._id}>{h.name}</option>)}
                                             </select>
                                         </div>
@@ -317,6 +380,46 @@ const AdminDashboard = () => {
 
                                     <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem' }}>Create User</button>
                                 </form>
+                            </div>
+
+                            <div className="glass-card" style={{ overflowX: 'auto', marginTop: '2rem' }}>
+                                <h4>Existing System Users</h4>
+                                {users.length === 0 ? <p>No users found in database.</p> : (
+                                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', marginTop: '1rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid #eee' }}>
+                                                <th style={{ padding: '10px' }}>Name & Email</th>
+                                                <th>Role</th>
+                                                <th>Associated Hospital</th>
+                                                <th>Global ID</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {users.map(u => (
+                                                <tr key={u._id}>
+                                                    <td style={{ padding: '10px' }}>
+                                                        <strong>{u.name}</strong><br/>
+                                                        <small>{u.email}</small>
+                                                    </td>
+                                                    <td><span style={{ padding: '3px 8px', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>{u.role}</span></td>
+                                                    <td>{u.hospitalId?.name || '---'}</td>
+                                                    <td><small>{u.ghid || 'N/A'}</small></td>
+                                                    <td>
+                                                        <button 
+                                                            onClick={() => handleDeleteUser(u._id)} 
+                                                            className="btn btn-outline" 
+                                                            style={{ fontSize: '0.7rem', color: u.email === 'superadmin@caresync.com' ? 'gray' : 'red', borderColor: u.email === 'superadmin@caresync.com' ? 'gray' : 'red' }}
+                                                            disabled={u.email === 'superadmin@caresync.com'}
+                                                        >
+                                                            {u.email === 'superadmin@caresync.com' ? 'Protected' : 'Delete'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         </section>
                     )}

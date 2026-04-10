@@ -1,16 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_URL = 'http://localhost:5000/api';
+
 const Home = () => {
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [city, setCity] = useState('');
+  const [cityId, setCityId] = useState('');
   const [hospital, setHospital] = useState('');
   const [hospitalConfirmed, setHospitalConfirmed] = useState(false);
+  const [cities, setCities] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
 
   const images = ['/assets/slider1.png', '/assets/slider2.png', '/assets/slider3.png'];
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const cityRes = await fetch(`${API_URL}/cities`);
+        const cityData = await cityRes.json();
+        setCities(cityData && !cityData.message ? cityData : []);
+
+        const hospRes = await fetch(`${API_URL}/hospitals`);
+        const hospData = await hospRes.json();
+        setHospitals(hospData && !hospData.message ? hospData.filter(h => h.status === 'Active') : []);
+      } catch (error) {
+        console.error("Failed to fetch initial data", error);
+      }
+    };
+    fetchData();
+
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % images.length);
     }, 4000);
@@ -18,7 +37,7 @@ const Home = () => {
   }, [images.length]);
 
   const handleCityChange = (e) => {
-    setCity(e.target.value);
+    setCityId(e.target.value);
     setHospital('');
   };
 
@@ -39,29 +58,21 @@ const Home = () => {
           <div className="selection-container glass-card">
             <div className="form-group">
               <label htmlFor="city-select" style={{ display: 'block', textAlign: 'left', marginBottom: '0.5rem', fontWeight: '600' }}>Select City</label>
-              <select id="city-select" value={city} onChange={handleCityChange}>
+              <select id="city-select" value={cityId} onChange={handleCityChange}>
                 <option value="">-- Choose City --</option>
-                <option value="Rawalpindi">Rawalpindi</option>
-                <option value="Islamabad">Islamabad</option>
+                {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
               </select>
             </div>
 
             <div className="form-group">
               <label htmlFor="hospital-select" style={{ display: 'block', textAlign: 'left', marginBottom: '0.5rem', fontWeight: '600' }}>Select Hospital</label>
-              <select id="hospital-select" value={hospital} onChange={(e) => setHospital(e.target.value)} disabled={!city}>
+              <select id="hospital-select" value={hospital} onChange={(e) => setHospital(e.target.value)} disabled={!cityId}>
                 <option value="">-- First Select City --</option>
-                {city === 'Rawalpindi' && (
-                  <>
-                    <option value="Benazir Bhutto Hospital">Benazir Bhutto Hospital</option>
-                    <option value="Holy Family Hospital">Holy Family Hospital</option>
-                  </>
-                )}
-                {city === 'Islamabad' && (
-                  <>
-                    <option value="PIMS">PIMS</option>
-                    <option value="Shifa International">Shifa International</option>
-                  </>
-                )}
+                {hospitals
+                  .filter(h => h.city && (h.city._id === cityId || h.city === cityId))
+                  .map(h => (
+                    <option key={h._id} value={h.name}>{h.name} {h.type && h.type !== 'General' ? `(${h.type})` : ''}</option>
+                  ))}
               </select>
             </div>
 
@@ -103,7 +114,7 @@ const Home = () => {
             </div>
 
             <div className="services-grid">
-              <div className="glass-card service-card" onClick={() => navigate('/patient-login')} style={{ cursor: 'pointer' }}>
+              <div className="glass-card service-card" onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>
                 <div className="service-icon"><i className="fas fa-user-md"></i></div>
                 <h3>Smart Doctor Schedule</h3>
                 <p>View real-time doctor availability and duty matrix.</p>
@@ -115,13 +126,13 @@ const Home = () => {
                 <p>Instant access to emergency numbers and doctors. No login required.</p>
               </div>
 
-              <div className="glass-card service-card" onClick={() => navigate('/patient-login')} style={{ cursor: 'pointer' }}>
+              <div className="glass-card service-card" onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>
                 <div className="service-icon"><i className="fas fa-robot"></i></div>
                 <h3>AI Health Assistant</h3>
                 <p>Get smart recommendations for your symptoms.</p>
               </div>
 
-              <div className="glass-card service-card" onClick={() => navigate('/patient-login')} style={{ cursor: 'pointer' }}>
+              <div className="glass-card service-card" onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>
                 <div className="service-icon"><i className="fas fa-flask"></i></div>
                 <h3>Smart Lab Reports</h3>
                 <p>Instant SMS/Email alerts for your test results.</p>

@@ -41,7 +41,7 @@ export const adminOnly = (req, res, next) => {
 
 // Middleware to check if user is a Hospital Admin
 export const hospitalAdminOnly = (req, res, next) => {
-    if (req.user && (req.user.role === 'Hospital Admin' || req.user.role === 'Web Admin')) {
+    if (req.user && (req.user.role === 'Hospital Admin' || req.user.role === 'Web Admin' || req.user.role === 'PA Admin')) {
         next();
     } else {
         res.status(403).json({ message: 'Access Denied: Hospital Admin privileges required.' });

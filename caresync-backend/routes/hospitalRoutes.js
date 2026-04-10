@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 // @access  Private/Web Admin
 router.post('/', protect, adminOnly, async (req, res) => {
     try {
-        const { name, city, status } = req.body; // 'city' should be the ObjectId of the specific city
+        const { name, city, address, phone, email, type, status } = req.body;
 
         // Verify city exists before creating hospital
         const cityExists = await City.findById(city);
@@ -34,6 +34,10 @@ router.post('/', protect, adminOnly, async (req, res) => {
         const hospital = await Hospital.create({
             name,
             city,
+            address,
+            phone,
+            email,
+            type: type || 'General',
             status: status || 'Active'
         });
 
@@ -54,7 +58,12 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
 
         if (hospital) {
             hospital.status = req.body.status || hospital.status;
-            // Additional fields can be updated here if needed in the future
+            if (req.body.name) hospital.name = req.body.name;
+            if (req.body.city) hospital.city = req.body.city;
+            if (req.body.address) hospital.address = req.body.address;
+            if (req.body.phone) hospital.phone = req.body.phone;
+            if (req.body.email) hospital.email = req.body.email;
+            if (req.body.type) hospital.type = req.body.type;
 
             const updatedHospital = await hospital.save();
             const populatedUpdatedHospital = await Hospital.findById(updatedHospital._id).populate('city', 'name');

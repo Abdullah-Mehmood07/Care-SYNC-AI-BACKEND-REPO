@@ -20,16 +20,10 @@ const Header = () => {
                     <div className="dropdown">
                         <button className="dropbtn"><i className="fas fa-bars"></i> Menu</button>
                         <div className="dropdown-content">
-                            <Link to="/"><i className="fas fa-home"></i> Welcome Screen</Link>
-                            <Link to="/patient-login"><i className="fas fa-user-injured"></i> Patient Portal</Link>
-                            <Link to="/pa-login"><i className="fas fa-user-nurse"></i> PA Portal</Link>
-                            <Link to="/lab-login"><i className="fas fa-flask"></i> Lab Portal</Link>
-                            <Link to="/hospital-login"><i className="fas fa-hospital"></i> Hospital Admin</Link>
-                            <Link to="/web-admin"><i className="fas fa-globe"></i> Web Admin</Link>
-                            <hr style={{ margin: '5px 0', border: '0', borderTop: '1px solid #eee' }} />
-                            <a href="#" onClick={(e) => { e.preventDefault(); handleLogout(); }}>
-                                <i className="fas fa-sign-out-alt"></i> Logout / Reset
-                            </a>
+                            <Link to="/"><i className="fas fa-home"></i> HomePage</Link>
+                            <Link to="/services"><i className="fas fa-server"></i> Platform Services</Link>
+                            <Link to="/login"><i className="fas fa-sign-in-alt"></i> Login</Link>
+
                         </div>
                     </div>
                 </div>
