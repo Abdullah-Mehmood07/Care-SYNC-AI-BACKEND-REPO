@@ -60,10 +60,16 @@ router.get('/my-appointments', protect, async (req, res) => {
  */
 router.get('/hospital', protect, hospitalAdminOnly, async (req, res) => {
     try {
-        // Fetch all appointments linked ONLY to the logged-in admin's hospital
-        const appointments = await Appointment.find({ hospitalId: req.user.hospitalId })
+        let query = { hospitalId: req.user.hospitalId };
+        
+        // If the user is a PA Admin, restrict to their specific doctor
+        if (req.user.role === 'PA Admin' && req.user.doctorId) {
+            query.doctorId = req.user.doctorId;
+        }
+
+        const appointments = await Appointment.find(query)
             .populate('doctorId', 'name specialty')
-            .populate('patientId', 'name email'); // Grab name and email
+            .populate('patientId', 'name email');
             
         res.json(appointments);
     } catch (error) {

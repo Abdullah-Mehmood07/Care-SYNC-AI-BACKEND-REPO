@@ -19,9 +19,17 @@ const doctorSchema = new mongoose.Schema({
         enum: ['Active', 'Inactive', 'On Leave'],
         default: 'Active'
     },
-    onCall: {
-        type: Boolean,
-        default: false
+    dutyStatus: {
+        type: String,
+        enum: ['On Duty', 'Off Duty', 'In Consultation'],
+        default: 'Off Duty'
+    },
+    weeklySchedule: {
+        type: Map,
+        of: Boolean,
+        default: {
+            Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false
+        }
     }
 }, {
     timestamps: true

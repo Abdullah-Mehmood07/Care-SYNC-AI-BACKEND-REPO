@@ -29,35 +29,7 @@ const EmergencyPublic = () => {
                 </div>
             </div>
 
-            <div className="glass-card">
-                <h3><i className="fas fa-user-md"></i> Doctors on Emergency Duty</h3>
-                <p className="text-muted" style={{ marginBottom: '1rem' }}>Directly contact available specialists.</p>
 
-                <div className="doctor-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'white', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #FECACA', marginBottom: '1rem' }}>
-                    <div style={{ width: '50px', height: '50px', background: '#eee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <i className="fas fa-user-md"></i>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <h4 style={{ color: '#991B1B' }}>Dr. Emergency Spec</h4>
-                        <p>Trauma Surgeon</p>
-                        <span style={{ fontSize: '0.8rem', background: '#DCFCE7', color: '#166534', padding: '2px 8px', borderRadius: '10px' }}>Immediately Available</span>
-                    </div>
-                    <button className="btn" style={{ background: '#DC2626', color: 'white' }}>Call Now</button>
-                </div>
-
-                <div className="doctor-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'white', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #FECACA', marginBottom: '1rem' }}>
-                    <div style={{ width: '50px', height: '50px', background: '#eee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <i className="fas fa-user-md"></i>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <h4 style={{ color: '#991B1B' }}>Dr. Cardio Urgent</h4>
-                        <p>Cardiologist</p>
-                        <span style={{ fontSize: '0.8rem', background: '#DCFCE7', color: '#166534', padding: '2px 8px', borderRadius: '10px' }}>On Call</span>
-                    </div>
-                    <button className="btn" style={{ background: '#DC2626', color: 'white' }}>Call Now</button>
-                </div>
-            </div>
-            
             <div style={{ textAlign: 'center', marginTop: '2rem' }}>
                 <button className="btn btn-outline" onClick={() => navigate('/')}>Return to Homepage</button>
             </div>

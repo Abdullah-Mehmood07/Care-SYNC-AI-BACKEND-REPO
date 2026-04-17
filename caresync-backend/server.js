@@ -10,6 +10,13 @@ import userRoutes from './routes/userRoutes.js';
 import doctorRoutes from './routes/doctorRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file
 dotenv.config();
@@ -39,6 +46,11 @@ app.use('/api/users', userRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/chats', chatRoutes);
+app.use('/api/upload', uploadRoutes);
+
+// Serve uploads folder as static
+app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
 // Basic Route for testing
 app.get('/', (req, res) => {

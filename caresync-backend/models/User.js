@@ -45,6 +45,11 @@ const userSchema = new mongoose.Schema(
         hospitalId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Hospital'
+        },
+        // For PA Admin Role: Which doctor do they assist?
+        doctorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Doctor'
         }
     },
     {

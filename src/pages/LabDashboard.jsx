@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserInfo, logoutUser } from '../utils/auth';
 
@@ -6,6 +6,7 @@ const LabDashboard = () => {
     const navigate = useNavigate();
     const userInfo = getUserInfo();
     const [hospitalName, setHospitalName] = useState('Loading...');
+    const [uploadFile, setUploadFile] = useState(null);
 
     useEffect(() => {
         if (!userInfo.token || userInfo.role !== 'Lab Admin') {
@@ -42,9 +43,35 @@ const LabDashboard = () => {
         navigate('/');
     };
 
-    const handleUpload = (e) => {
+    const handleUpload = async (e) => {
         e.preventDefault();
-        alert('Report Uploaded and Notification Sent to Patient!');
+        if (!uploadFile) {
+            return alert('Please select a file to upload!');
+        }
+        
+        const formData = new FormData();
+        formData.append('report', uploadFile);
+        
+        try {
+            const res = await fetch('http://localhost:5000/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${userInfo.token}`
+                },
+                body: formData
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                alert(`Report Uploaded and Notification Sent to Patient!\nSaved at: ${data.filePath}`);
+                setUploadFile(null); // Reset after upload
+            } else {
+                const err = await res.json();
+                alert(`Upload failed: ${err.message}`);
+            }
+        } catch (error) {
+            alert('Failed to connect to the backend server.');
+        }
     };
 
     return (
@@ -90,14 +117,20 @@ const LabDashboard = () => {
 
                             <div className="form-group" style={{ marginBottom: '1rem' }}>
                                 <label>Upload File (PDF/JPG)</label>
-                                <div style={{ border: '2px dashed #ccc', padding: '2rem', textAlign: 'center', borderRadius: '8px', cursor: 'pointer' }}>
+                                <div style={{ position: 'relative', border: '2px dashed #ccc', padding: '2rem', textAlign: 'center', borderRadius: '8px', cursor: 'pointer' }}>
                                     <i className="fas fa-cloud-upload-alt" style={{ fontSize: '2rem', color: 'var(--text-muted)' }}></i>
-                                    <p>Click to browse files</p>
-                                    <input type="file" style={{ opacity: 0, position: 'absolute', pointerEvents: 'none' }} />
+                                    <p>{uploadFile ? uploadFile.name : 'Click to browse files'}</p>
+                                    <input 
+                                        type="file" 
+                                        onChange={(e) => setUploadFile(e.target.files[0])}
+                                        style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }} 
+                                    />
                                 </div>
                             </div>
 
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Upload & Notify Patient</button>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={!uploadFile}>
+                                {uploadFile ? 'Upload & Notify Patient' : 'Select File to Upload'}
+                            </button>
                         </form>
                     </div>
                 </main>

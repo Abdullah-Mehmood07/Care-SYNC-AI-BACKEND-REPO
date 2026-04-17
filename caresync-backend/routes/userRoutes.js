@@ -48,6 +48,7 @@ router.post('/login', async (req, res) => {
                 role: user.role,
                 ghid: user.ghid,
                 hospitalId: user.hospitalId,
+                doctorId: user.doctorId,
                 token: generateToken(user._id)
             });
         } else {
@@ -64,7 +65,7 @@ router.post('/login', async (req, res) => {
 // @access  Public (for Patients) / Private (for Admins)
 router.post('/', async (req, res) => {
     try {
-        const { name, email, password, role, hospitalId, national_id } = req.body;
+        const { name, email, password, role, hospitalId, doctorId, national_id } = req.body;
 
         const userExists = await User.findOne({ email });
         if (userExists) {
@@ -109,6 +110,9 @@ router.post('/', async (req, res) => {
                 
                 // Assign to the exact same hospital
                 userData.hospitalId = currentUser.hospitalId;
+                if (requestedRole === 'PA Admin' && doctorId) {
+                    userData.doctorId = doctorId;
+                }
             } else {
                 return res.status(401).json({ message: `Not authorized to create ${requestedRole}.` });
             }
@@ -119,12 +123,37 @@ router.post('/', async (req, res) => {
             if (!national_id) {
                 return res.status(400).json({ message: 'National ID (CNIC/SSN) is required for patient registration.' });
             }
-            const nidExists = await User.findOne({ national_id });
-            if (nidExists) {
-                return res.status(400).json({ message: 'A patient is already registered with this National ID.' });
+            const existingPatient = await User.findOne({ national_id });
+            if (existingPatient) {
+                // Global Patient Identity Feature
+                // Instead of rejecting, we return the existing identity
+                
+                // If a hospital logs them in and passes a specific MR Number, we link it
+                if (req.body.hospitalId && req.body.mrNumber) {
+                    const alreadyLinked = existingPatient.localMrNumbers.find(m => m.hospital.toString() === req.body.hospitalId);
+                    if (!alreadyLinked) {
+                        existingPatient.localMrNumbers.push({ hospital: req.body.hospitalId, mrNumber: req.body.mrNumber });
+                        await existingPatient.save();
+                    }
+                }
+
+                return res.status(200).json({
+                    message: 'Patient already globally registered. Linking existing identity.',
+                    _id: existingPatient._id,
+                    name: existingPatient.name,
+                    email: existingPatient.email,
+                    role: existingPatient.role,
+                    ghid: existingPatient.ghid,
+                    token: generateToken(existingPatient._id)
+                });
             }
             userData.national_id = national_id;
             userData.ghid = await generateGHID();
+            
+            // Allow linking mr number on initial registration
+            if (req.body.hospitalId && req.body.mrNumber) {
+                userData.localMrNumbers = [{ hospital: req.body.hospitalId, mrNumber: req.body.mrNumber }];
+            }
         }
 
         const user = await User.create(userData);
@@ -137,6 +166,7 @@ router.post('/', async (req, res) => {
                 role: user.role,
                 ghid: user.ghid,
                 hospitalId: user.hospitalId,
+                doctorId: user.doctorId,
                 token: generateToken(user._id) // Auto-login after registration
             });
         } else {
@@ -177,6 +207,30 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ message: 'Server Error deleting user' });
+    }
+});
+
+// @desc    Change password
+// @route   PUT /api/users/profile/password
+// @access  Private
+router.put('/profile/password', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (user) {
+            const { oldPassword, newPassword } = req.body;
+            if (await user.matchPassword(oldPassword)) {
+                user.password = newPassword;
+                await user.save();
+                res.json({ message: 'Password updated successfully' });
+            } else {
+                res.status(401).json({ message: 'Incorrect old password' });
+            }
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating password' });
     }
 });
 

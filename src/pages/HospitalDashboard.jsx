@@ -6,45 +6,40 @@ const HospitalDashboard = () => {
     const [activeTab, setActiveTab] = useState('doctors');
     const navigate = useNavigate();
     const userInfo = getUserInfo();
-    const [hospitalName, setHospitalName] = useState('Loading...');
+    const [hospitalName, setHospitalName] = useState({ name: 'Loading...', city: '' });
 
     // Data States
     const [doctors, setDoctors] = useState([]);
     const [services, setServices] = useState([]);
-    const [newDoctorData, setNewDoctorData] = useState({ name: '', specialty: '', status: 'Active', onCall: false });
+    const [newDoctorData, setNewDoctorData] = useState({ name: '', specialty: '', status: 'Active' });
     const [newServiceData, setNewServiceData] = useState({ name: '', description: '', price: 0 });
     const [newLabData, setNewLabData] = useState({ name: '', email: '', password: '' });
-    const [newPaData, setNewPaData] = useState({ name: '', email: '', password: '' });
+    const [newPaData, setNewPaData] = useState({ name: '', email: '', password: '', doctorId: '' });
+    const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '' });
 
     useEffect(() => {
         if (!userInfo.token || userInfo.role !== 'Hospital Admin') {
-            navigate('/hospital-login');
+            navigate('/login');
             return;
         }
 
         const fetchHospitalDetails = async () => {
             try {
-                // If we don't have a hospital route by ID yet, we'll gracefully fallback or fetch all and filter
-                // For a true industrial build, we'd add 'GET /api/hospitals/:id' in the backend. 
-                // Using fallback here assuming standard REST architecture.
                 const res = await fetch(`http://localhost:5000/api/hospitals`, {
                     headers: { 'Authorization': `Bearer ${userInfo.token}` }
                 });
                 const data = await res.json();
                 
-                // Find our specific hospital using the ID connected to this Admin
                 const myHospital = Array.isArray(data) ? data.find(h => h._id === userInfo.hospitalId) : null;
                 
                 if (myHospital) {
                     setHospitalName({ name: myHospital.name, city: myHospital.city?.name || '' });
-                    // Fetch doctors and services specifically for this hospital once we know who we are
                     fetchDoctors(userInfo.hospitalId);
                     fetchServices(userInfo.hospitalId);
                 } else {
                     setHospitalName({ name: 'Unassigned Hospital Sector', city: '' });
                 }
             } catch (error) {
-                console.error("Failed to load hospital details");
                 setHospitalName({ name: 'Error Loading Hospital', city: '' });
             }
         };
@@ -56,9 +51,7 @@ const HospitalDashboard = () => {
                 });
                 const data = await res.json();
                 setDoctors(Array.isArray(data) ? data : []);
-            } catch (error) {
-                console.error('Failed to fetch doctors', error);
-            }
+            } catch (error) {}
         };
 
         const fetchServices = async (hospitalId) => {
@@ -68,9 +61,7 @@ const HospitalDashboard = () => {
                 });
                 const data = await res.json();
                 setServices(Array.isArray(data) ? data : []);
-            } catch (error) {
-                console.error('Failed to fetch services', error);
-            }
+            } catch (error) {}
         };
 
         fetchHospitalDetails();
@@ -95,9 +86,8 @@ const HospitalDashboard = () => {
             });
 
             if (res.ok) {
-                setNewDoctorData({ name: '', specialty: '', status: 'Active', onCall: false });
+                setNewDoctorData({ name: '', specialty: '', status: 'Active' });
                 
-                // Refresh list
                 const refreshedRes = await fetch(`http://localhost:5000/api/doctors/hospital/${userInfo.hospitalId}`, {
                     headers: { 'Authorization': `Bearer ${userInfo.token}` }
                 });
@@ -128,7 +118,6 @@ const HospitalDashboard = () => {
 
             if (res.ok) {
                 setNewServiceData({ name: '', description: '', price: 0 });
-                // Refresh list using the direct fetch approach
                 const refreshedRes = await fetch(`http://localhost:5000/api/services/hospital/${userInfo.hospitalId}`, {
                     headers: { 'Authorization': `Bearer ${userInfo.token}` }
                 });
@@ -175,6 +164,7 @@ const HospitalDashboard = () => {
 
     const handleAddPaAdmin = async (e) => {
         e.preventDefault();
+        if (!newPaData.doctorId) return alert("Please select a Doctor for this PA.");
         try {
             const res = await fetch(`http://localhost:5000/api/users`, {
                 method: 'POST',
@@ -186,12 +176,13 @@ const HospitalDashboard = () => {
                     name: newPaData.name,
                     email: newPaData.email,
                     password: newPaData.password,
-                    role: 'PA Admin'
+                    role: 'PA Admin',
+                    doctorId: newPaData.doctorId
                 })
             });
 
             if (res.ok) {
-                setNewPaData({ name: '', email: '', password: '' });
+                setNewPaData({ name: '', email: '', password: '', doctorId: '' });
                 alert('PA Administrator account created successfully!');
             } else {
                 const err = await res.json();
@@ -202,23 +193,27 @@ const HospitalDashboard = () => {
         }
     };
 
-    const toggleDoctorOnCall = async (doctorId, currentStatus) => {
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
         try {
-            const res = await fetch(`http://localhost:5000/api/doctors/${doctorId}`, {
+            const res = await fetch(`http://localhost:5000/api/users/profile/password`, {
                 method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${userInfo.token}`
                 },
-                body: JSON.stringify({ onCall: !currentStatus })
+                body: JSON.stringify(passwordData)
             });
 
             if (res.ok) {
-                // Update local state directly for speedy UI feedback
-                setDoctors(doctors.map(doc => doc._id === doctorId ? { ...doc, onCall: !currentStatus } : doc));
+                setPasswordData({ oldPassword: '', newPassword: '' });
+                alert('Password changed successfully!');
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.message}`);
             }
         } catch (error) {
-            alert('Failed to update doctor status.');
+            alert('Failed to connect to the backend server.');
         }
     };
 
@@ -229,7 +224,7 @@ const HospitalDashboard = () => {
                     {hospitalName.name} <span style={{fontSize: '0.8rem', color: '#666', fontWeight: 'normal'}}>{hospitalName.city ? `(${hospitalName.city})` : ''}</span>
                 </span>
                 <div style={{ fontSize: '0.9rem' }}>
-                    <i className="fas fa-user-shield"></i> {userInfo.email.split('@')[0]}
+                    <i className="fas fa-user-shield"></i> {userInfo.email?.split('@')[0]}
                     <button onClick={handleLogout} className="btn btn-outline" style={{ marginLeft: '1rem', padding: '0.3rem 0.8rem' }}>Logout</button>
                 </div>
             </div>
@@ -243,9 +238,6 @@ const HospitalDashboard = () => {
                     <div className={`sidebar-item ${activeTab === 'patients' ? 'active' : ''}`} onClick={() => setActiveTab('patients')} style={{ padding: '1rem 2rem', cursor: 'pointer', transition: 'all 0.3s', fontWeight: 500 }}>
                         <i className="fas fa-user-injured" style={{ marginRight: '10px' }}></i> Register Patient
                     </div>
-                    <div className={`sidebar-item ${activeTab === 'emergency' ? 'active' : ''}`} onClick={() => setActiveTab('emergency')} style={{ padding: '1rem 2rem', cursor: 'pointer', transition: 'all 0.3s', fontWeight: 500 }}>
-                        <i className="fas fa-ambulance" style={{ marginRight: '10px' }}></i> Emergency Settings
-                    </div>
                     <div className={`sidebar-item ${activeTab === 'services' ? 'active' : ''}`} onClick={() => setActiveTab('services')} style={{ padding: '1rem 2rem', cursor: 'pointer', transition: 'all 0.3s', fontWeight: 500 }}>
                         <i className="fas fa-concierge-bell" style={{ marginRight: '10px' }}></i> Hospital Services
                     </div>
@@ -254,6 +246,9 @@ const HospitalDashboard = () => {
                     </div>
                     <div className={`sidebar-item ${activeTab === 'pa-portal' ? 'active' : ''}`} onClick={() => setActiveTab('pa-portal')} style={{ padding: '1rem 2rem', cursor: 'pointer', transition: 'all 0.3s', fontWeight: 500 }}>
                         <i className="fas fa-user-nurse" style={{ marginRight: '10px' }}></i> Manage PA Portal
+                    </div>
+                    <div className={`sidebar-item ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')} style={{ padding: '1rem 2rem', cursor: 'pointer', transition: 'all 0.3s', fontWeight: 500 }}>
+                        <i className="fas fa-lock" style={{ marginRight: '10px' }}></i> Security Settings
                     </div>
                 </aside>
 
@@ -271,10 +266,6 @@ const HospitalDashboard = () => {
                                     <option value="Inactive">Inactive</option>
                                     <option value="On Leave">On Leave</option>
                                 </select>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <input type="checkbox" checked={newDoctorData.onCall} onChange={(e) => setNewDoctorData({...newDoctorData, onCall: e.target.checked})} />
-                                    On Call
-                                </label>
                                 <button type="submit" className="btn btn-primary">Add Doctor</button>
                             </form>
 
@@ -286,7 +277,6 @@ const HospitalDashboard = () => {
                                                 <th style={{ padding: '10px' }}>Name</th>
                                                 <th>Specialty</th>
                                                 <th>Status</th>
-                                                <th>On Call</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
@@ -296,7 +286,6 @@ const HospitalDashboard = () => {
                                                     <td style={{ padding: '10px' }}>{doc.name}</td>
                                                     <td>{doc.specialty}</td>
                                                     <td style={{ color: doc.status === 'Active' ? 'green' : 'gray' }}>{doc.status}</td>
-                                                    <td style={{ color: doc.onCall ? 'red' : 'inherit', fontWeight: doc.onCall ? 'bold' : 'normal' }}>{doc.onCall ? 'Yes' : 'No'}</td>
                                                     <td>
                                                         <button className="btn btn-outline" style={{ padding: '2px 8px', fontSize: '0.8rem', marginRight: '5px' }}>Edit</button>
                                                     </td>
@@ -325,40 +314,6 @@ const HospitalDashboard = () => {
                                     </div>
                                     <button type="submit" className="btn btn-primary">Create Patient Record</button>
                                 </form>
-                            </div>
-                        </section>
-                    )}
-
-                    {activeTab === 'emergency' && (
-                        <section className="panel-section active">
-                            <h2>Manage Emergency Response</h2>
-                            <div className="glass-card">
-                                <h3>Emergency Roster (Toggle On-Call)</h3>
-                                <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>Click below to immediately dispatch or remove a doctor from emergency duty.</p>
-                                
-                                {doctors.length === 0 ? <p>No doctors available to assign.</p> : (
-                                    <ul style={{ listStyle: 'none', padding: 0 }}>
-                                    {doctors.map(doc => (
-                                        <li key={doc._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' }}>
-                                            <div>
-                                                <strong>{doc.name}</strong> <span style={{ fontSize: '0.8rem', color: '#666' }}>({doc.specialty})</span>
-                                            </div>
-                                            <button 
-                                                onClick={() => toggleDoctorOnCall(doc._id, doc.onCall)}
-                                                className="btn" 
-                                                style={{ 
-                                                    background: doc.onCall ? '#DC2626' : '#E2E8F0', 
-                                                    color: doc.onCall ? 'white' : 'black',
-                                                    padding: '5px 15px',
-                                                    fontSize: '0.9rem'
-                                                }}
-                                            >
-                                                {doc.onCall ? 'ON CALL' : 'Set On-Call'}
-                                            </button>
-                                        </li>
-                                    ))}
-                                    </ul>
-                                )}
                             </div>
                         </section>
                     )}
@@ -441,9 +396,38 @@ const HospitalDashboard = () => {
                                         <input type="email" placeholder="PA Email Address" required value={newPaData.email} onChange={(e) => setNewPaData({...newPaData, email: e.target.value})} />
                                     </div>
                                     <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <label style={{ fontSize: '0.9rem', marginBottom: '0.5rem', display: 'block' }}>Assign Doctor</label>
+                                        <select required value={newPaData.doctorId} onChange={(e) => setNewPaData({...newPaData, doctorId: e.target.value})} style={{ width: '100%', padding: '8px' }}>
+                                            <option value="">-- Select Doctor --</option>
+                                            {doctors.map(d => (
+                                                <option key={d._id} value={d._id}>{d.name} ({d.specialty})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
                                         <input type="password" placeholder="Set Initial Password" required value={newPaData.password} onChange={(e) => setNewPaData({...newPaData, password: e.target.value})} />
                                     </div>
                                     <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>Generate Access</button>
+                                </form>
+                            </div>
+                        </section>
+                    )}
+
+                    {activeTab === 'security' && (
+                        <section className="panel-section active">
+                            <h2>Security Settings</h2>
+                            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Update your hospital admin password here.</p>
+                            
+                            <div className="glass-card" style={{ maxWidth: '600px' }}>
+                                <h4>Change Password</h4>
+                                <form onSubmit={handleChangePassword} style={{ marginTop: '1rem' }}>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <input type="password" placeholder="Old Password" required value={passwordData.oldPassword} onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})} />
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <input type="password" placeholder="New Password" required value={passwordData.newPassword} onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})} />
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>Update Password</button>
                                 </form>
                             </div>
                         </section>
