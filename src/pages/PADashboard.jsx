@@ -10,7 +10,15 @@ const PADashboard = () => {
     const [appointments, setAppointments] = useState([]);
     
     // Doctor Details State
-    const [schedule, setSchedule] = useState({ Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false });
+    const [schedule, setSchedule] = useState({
+        Mon: { isActive: true, startTime: '09:00', endTime: '17:00', isEditing: false },
+        Tue: { isActive: true, startTime: '09:00', endTime: '17:00', isEditing: false },
+        Wed: { isActive: true, startTime: '09:00', endTime: '17:00', isEditing: false },
+        Thu: { isActive: true, startTime: '09:00', endTime: '17:00', isEditing: false },
+        Fri: { isActive: true, startTime: '09:00', endTime: '17:00', isEditing: false },
+        Sat: { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false },
+        Sun: { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false }
+    });
     const [dutyStatus, setDutyStatus] = useState('Off Duty');
     
     // Chat States
@@ -55,8 +63,32 @@ const PADashboard = () => {
                     });
                     const data = await res.json();
                     if (data && !data.message) {
-                        if (data.weeklySchedule && typeof data.weeklySchedule === 'object' && Object.keys(data.weeklySchedule).length > 0) {
-                            setSchedule(data.weeklySchedule);
+                        if (data.weeklySchedule) {
+                            if (typeof data.weeklySchedule === 'object' && Object.keys(data.weeklySchedule).length > 0) {
+                                const newSchedule = { ...data.weeklySchedule };
+                                Object.keys(newSchedule).forEach(day => {
+                                    if (typeof newSchedule[day] === 'boolean') {
+                                        newSchedule[day] = {
+                                            isActive: newSchedule[day],
+                                            startTime: '09:00',
+                                            endTime: '17:00',
+                                            isEditing: false
+                                        };
+                                    } else if (newSchedule[day]) {
+                                        newSchedule[day].isEditing = false;
+                                    }
+                                });
+                                const fullSchedule = {
+                                    Mon: newSchedule.Mon || { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false },
+                                    Tue: newSchedule.Tue || { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false },
+                                    Wed: newSchedule.Wed || { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false },
+                                    Thu: newSchedule.Thu || { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false },
+                                    Fri: newSchedule.Fri || { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false },
+                                    Sat: newSchedule.Sat || { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false },
+                                    Sun: newSchedule.Sun || { isActive: false, startTime: '09:00', endTime: '17:00', isEditing: false }
+                                };
+                                setSchedule(fullSchedule);
+                            }
                         }
                         if (data.dutyStatus) setDutyStatus(data.dutyStatus);
                     }
@@ -66,7 +98,7 @@ const PADashboard = () => {
             };
             fetchDoctorDetails();
         }
-    }, [navigate, userInfo]);
+    }, [navigate, userInfo.token, userInfo.doctorId, userInfo.role, userInfo.hospitalId]);
 
     useEffect(() => {
         if (activeTab === 'appointments' && userInfo.doctorId) {
@@ -116,7 +148,7 @@ const PADashboard = () => {
         }
     }, [selectedPatient, userInfo.token, userInfo.doctorId]);
 
-    const handleUpdateSchedule = async () => {
+    const handleUpdateSchedule = async (scheduleData = schedule, statusData = dutyStatus, showSuccessAlert = true) => {
         if (!userInfo.doctorId) return alert("No doctor assigned to this PA. Please logout and log back in if this is an error.");
         try {
             const res = await fetch(`http://localhost:5000/api/doctors/${userInfo.doctorId}`, {
@@ -125,11 +157,12 @@ const PADashboard = () => {
                     'Authorization': `Bearer ${userInfo.token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ weeklySchedule: schedule, dutyStatus: dutyStatus })
+                body: JSON.stringify({ weeklySchedule: scheduleData, dutyStatus: statusData })
             });
 
-            if (res.ok) alert(`Schedule updated successfully.`);
-            else {
+            if (res.ok) {
+                if (showSuccessAlert) alert(`Schedule updated successfully.`);
+            } else {
                 const err = await res.json();
                 alert(`Failed to update schedule: ${err.message}. If this persists, logout and log back in.`);
             }
@@ -193,7 +226,47 @@ const PADashboard = () => {
     };
 
     const toggleDay = (day) => {
-        setSchedule({ ...schedule, [day]: !schedule[day] });
+        const currentlyActive = schedule[day]?.isActive;
+        const newSchedule = { 
+            ...schedule, 
+            [day]: { 
+                ...schedule[day], 
+                isActive: !currentlyActive,
+                isEditing: !currentlyActive ? true : false
+            } 
+        };
+        setSchedule(newSchedule);
+        if (currentlyActive) {
+            handleUpdateSchedule(newSchedule, dutyStatus, false); // Auto-save on delete/untoggle
+        }
+    };
+
+    const updateDayTime = (day, field, value) => {
+        setSchedule({
+            ...schedule,
+            [day]: {
+                ...schedule[day],
+                [field]: value
+            }
+        });
+    };
+
+    const saveDayRow = (day) => {
+        const newSchedule = {
+            ...schedule,
+            [day]: { ...schedule[day], isEditing: false }
+        };
+        setSchedule(newSchedule);
+        handleUpdateSchedule(newSchedule, dutyStatus, true);
+    };
+
+    const deleteDayRow = (day) => {
+        const newSchedule = {
+            ...schedule,
+            [day]: { ...schedule[day], isActive: false, isEditing: false }
+        };
+        setSchedule(newSchedule);
+        handleUpdateSchedule(newSchedule, dutyStatus, false);
     };
 
     return (
@@ -233,13 +306,62 @@ const PADashboard = () => {
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px', marginTop: '1rem' }}>
                                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                                             <div key={day} onClick={() => toggleDay(day)} style={{ 
-                                                background: schedule[day] ? 'var(--primary-teal)' : 'white', 
-                                                color: schedule[day] ? 'white' : 'black', 
+                                                background: schedule[day]?.isActive ? 'var(--primary-teal)' : 'white', 
+                                                color: schedule[day]?.isActive ? 'white' : 'black', 
                                                 padding: '10px', border: '1px solid #eee', textAlign: 'center', borderRadius: '8px', cursor: 'pointer' 
                                             }}>
                                                 {day}
                                             </div>
                                         ))}
+                                    </div>
+                                    
+                                    <div style={{ marginTop: '2rem' }}>
+                                        <h4>Manage Selected Days</h4>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left', color: '#666' }}>
+                                                    <th style={{ padding: '10px' }}>Day</th>
+                                                    <th>Timings</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                                                    const item = schedule[day];
+                                                    if (!item?.isActive) return null;
+                                                    
+                                                    return (
+                                                        <tr key={day} style={{ borderBottom: '1px solid #eee' }}>
+                                                            <td style={{ padding: '10px', fontWeight: 'bold' }}>{day}</td>
+                                                            <td>
+                                                                {item.isEditing ? (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                        <input type="time" value={item.startTime} onChange={(e) => updateDayTime(day, 'startTime', e.target.value)} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                                                        <span>to</span>
+                                                                        <input type="time" value={item.endTime} onChange={(e) => updateDayTime(day, 'endTime', e.target.value)} style={{ padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                ) : (
+                                                                    <span style={{ fontWeight: 500 }}>{item.startTime} - {item.endTime}</span>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                {item.isEditing ? (
+                                                                    <button onClick={() => saveDayRow(day)} className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.8rem', marginRight: '8px' }}>Save</button>
+                                                                ) : (
+                                                                    <button onClick={() => updateDayTime(day, 'isEditing', true)} className="btn btn-outline" style={{ padding: '5px 12px', fontSize: '0.8rem', marginRight: '8px' }}>Edit</button>
+                                                                )}
+                                                                <button onClick={() => deleteDayRow(day)} className="btn" style={{ background: '#FEE2E2', color: '#991B1B', padding: '5px 12px', fontSize: '0.8rem', border: 'none', borderRadius: '4px' }}>Remove</button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {Object.keys(schedule).every(d => !schedule[d].isActive) && (
+                                                    <tr>
+                                                        <td colSpan="3" style={{ padding: '15px 10px', textAlign: 'center', color: '#888' }}>No days selected. Click a day above to add to your schedule.</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
                                     <div style={{ marginTop: '1rem' }}>
                                         <label>Duty Status</label>
@@ -249,7 +371,7 @@ const PADashboard = () => {
                                             <option value="In Consultation">In Consultation</option>
                                         </select>
                                     </div>
-                                    <button onClick={handleUpdateSchedule} className="btn btn-primary" style={{ marginTop: '1rem' }}>Update Schedule</button>
+                                    <button onClick={() => handleUpdateSchedule(schedule, dutyStatus, true)} className="btn btn-primary" style={{ marginTop: '1rem' }}>Update Schedule</button>
                                 </div>
                             )}
                         </section>

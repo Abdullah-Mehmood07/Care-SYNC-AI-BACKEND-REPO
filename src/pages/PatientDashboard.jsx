@@ -46,7 +46,7 @@ const PatientDashboard = () => {
             } catch (err) { console.error("Failed to load patient static data", err); }
         };
         fetchInitialData();
-    }, [navigate, userInfo]);
+    }, [navigate, userInfo.token, userInfo.role, userInfo._id]);
 
     // Chat thread loader (polling)
     useEffect(() => {
@@ -64,7 +64,7 @@ const PatientDashboard = () => {
             const interval = setInterval(fetchMessages, 3000); // Polling every 3s
             return () => clearInterval(interval);
         }
-    }, [activeTab, selectedDoctorId, userInfo]);
+    }, [activeTab, selectedDoctorId, userInfo._id, userInfo.token]);
 
     const handleSendMessage = async (e) => {
         e.preventDefault();

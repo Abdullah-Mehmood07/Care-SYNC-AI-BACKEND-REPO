@@ -74,6 +74,7 @@ router.put('/:id', protect, hospitalAdminOnly, async (req, res) => {
 
         if (req.body.weeklySchedule) {
             doctor.set('weeklySchedule', req.body.weeklySchedule);
+            doctor.markModified('weeklySchedule');
         }
         if (req.body.dutyStatus) {
             doctor.dutyStatus = req.body.dutyStatus;

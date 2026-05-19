@@ -51,34 +51,48 @@ const Home = () => {
   return (
     <>
       {!hospitalConfirmed ? (
-        <section id="welcome-section" className="hero">
-          <h1>Welcome to CareSync AI</h1>
-          <p>Your connected multi-hospital healthcare ecosystem. Please select your location to begin.</p>
+        <section id="welcome-section" className="hero-section">
+          <div className="hero-container">
+            <div className="hero-content">
+              <h1>Welcome to CareSync AI</h1>
+              <p>Your connected multi-hospital healthcare ecosystem. Please select your location to begin.</p>
 
-          <div className="selection-container glass-card">
-            <div className="form-group">
-              <label htmlFor="city-select" style={{ display: 'block', textAlign: 'left', marginBottom: '0.5rem', fontWeight: '600' }}>Select City</label>
-              <select id="city-select" value={cityId} onChange={handleCityChange}>
-                <option value="">-- Choose City --</option>
-                {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </select>
+              <div className="selection-container glass-card">
+                <div className="form-group">
+                  <label htmlFor="city-select" style={{ display: 'block', textAlign: 'left', marginBottom: '0.5rem', fontWeight: '600' }}>Select City</label>
+                  <select id="city-select" value={cityId} onChange={handleCityChange}>
+                    <option value="">-- Choose City --</option>
+                    {cities.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="hospital-select" style={{ display: 'block', textAlign: 'left', marginBottom: '0.5rem', fontWeight: '600' }}>Select Hospital</label>
+                  <select id="hospital-select" value={hospital} onChange={(e) => setHospital(e.target.value)} disabled={!cityId}>
+                    <option value="">-- First Select City --</option>
+                    {hospitals
+                      .filter(h => h.city && (h.city._id === cityId || h.city === cityId))
+                      .map(h => (
+                        <option key={h._id} value={h.name}>{h.name} {h.type && h.type !== 'General' ? `(${h.type})` : ''}</option>
+                      ))}
+                  </select>
+                </div>
+
+                <button id="btn-confirm-hospital" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} onClick={handleConfirmHospital} disabled={!hospital}>
+                  Enter Hospital Portal <i className="fas fa-arrow-right"></i>
+                </button>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="hospital-select" style={{ display: 'block', textAlign: 'left', marginBottom: '0.5rem', fontWeight: '600' }}>Select Hospital</label>
-              <select id="hospital-select" value={hospital} onChange={(e) => setHospital(e.target.value)} disabled={!cityId}>
-                <option value="">-- First Select City --</option>
-                {hospitals
-                  .filter(h => h.city && (h.city._id === cityId || h.city === cityId))
-                  .map(h => (
-                    <option key={h._id} value={h.name}>{h.name} {h.type && h.type !== 'General' ? `(${h.type})` : ''}</option>
-                  ))}
-              </select>
+            <div className="hero-image-gallery">
+               <img src="/assets/image 3.jpg" alt="Main Healthcare" className="gallery-img main-img" />
+               <img src="/assets/image 1.jpg" alt="Nurse" className="gallery-img sub-img-1" />
+               <img src="/assets/image 6.jpg" alt="Medical Team" className="gallery-img sub-img-2" />
+               <div className="experience-badge glass-card">
+                 <i className="fas fa-heartbeat"></i>
+                 <span>Premium Care</span>
+               </div>
             </div>
-
-            <button id="btn-confirm-hospital" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} onClick={handleConfirmHospital} disabled={!hospital}>
-              Enter Hospital Portal <i className="fas fa-arrow-right"></i>
-            </button>
           </div>
         </section>
       ) : (

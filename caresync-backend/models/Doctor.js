@@ -25,11 +25,14 @@ const doctorSchema = new mongoose.Schema({
         default: 'Off Duty'
     },
     weeklySchedule: {
-        type: Map,
-        of: Boolean,
-        default: {
-            Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false
-        }
+        type: mongoose.Schema.Types.Mixed,
+        default: [
+            { id: '1', day: 'Monday', startTime: '09:00', endTime: '17:00', isActive: true },
+            { id: '2', day: 'Tuesday', startTime: '09:00', endTime: '17:00', isActive: true },
+            { id: '3', day: 'Wednesday', startTime: '09:00', endTime: '17:00', isActive: true },
+            { id: '4', day: 'Thursday', startTime: '09:00', endTime: '17:00', isActive: true },
+            { id: '5', day: 'Friday', startTime: '09:00', endTime: '17:00', isActive: true }
+        ]
     }
 }, {
     timestamps: true
