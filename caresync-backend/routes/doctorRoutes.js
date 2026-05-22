@@ -5,6 +5,24 @@ import { protect, hospitalAdminOnly } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 /**
+ * @desc    Get On Duty doctors for public emergency lookup (No Auth required)
+ * @route   GET /api/doctors/public/emergency/:hospitalId
+ * @access  Public
+ */
+router.get('/public/emergency/:hospitalId', async (req, res) => {
+    try {
+        const doctors = await Doctor.find({
+            hospital: req.params.hospitalId,
+            dutyStatus: 'On Duty',
+            status: 'Active'
+        }).select('name specialty dutyStatus emergencyExtension');
+        res.json(doctors);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching emergency doctors' });
+    }
+});
+
+/**
  * @desc    Get all doctors FOR A SPECIFIC HOSPITAL (Used by both Patients to view, and Hospital Admins)
  * @route   GET /api/doctors/hospital/:hospitalId
  * @access  Private (Logged in Users)
@@ -29,7 +47,7 @@ router.post('/', protect, hospitalAdminOnly, async (req, res) => {
             return res.status(403).json({ message: 'PA Admin cannot create doctors' });
         }
 
-        const { name, specialty, status } = req.body;
+        const { name, specialty, status, emergencyExtension } = req.body;
         
         // Critical Security: We force the doctor's hospital to equal the logged-in Hospital Admin's hospitalId
         // This ensures Admin A cannot create a doctor inside Admin B's hospital.
@@ -37,7 +55,8 @@ router.post('/', protect, hospitalAdminOnly, async (req, res) => {
             name,
             specialty,
             hospital: req.user.hospitalId, 
-            status: status || 'Active'
+            status: status || 'Active',
+            emergencyExtension: emergencyExtension || ''
         });
 
         res.status(201).json(doctor);
@@ -81,6 +100,9 @@ router.put('/:id', protect, hospitalAdminOnly, async (req, res) => {
         }
         if (req.body.status) {
             doctor.status = req.body.status;
+        }
+        if (req.body.emergencyExtension !== undefined) {
+            doctor.emergencyExtension = req.body.emergencyExtension;
         }
         
         const updatedDoctor = await doctor.save();

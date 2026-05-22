@@ -33,6 +33,10 @@ const doctorSchema = new mongoose.Schema({
             { id: '4', day: 'Thursday', startTime: '09:00', endTime: '17:00', isActive: true },
             { id: '5', day: 'Friday', startTime: '09:00', endTime: '17:00', isActive: true }
         ]
+    },
+    emergencyExtension: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true

@@ -12,6 +12,11 @@ import serviceRoutes from './routes/serviceRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
+import medicalHistoryRoutes from './routes/medicalHistoryRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -48,6 +53,11 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/medical-history', medicalHistoryRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Serve uploads folder as static
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));

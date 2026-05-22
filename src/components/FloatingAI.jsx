@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 const FloatingAI = () => {
+    const API_BASE = 'http://localhost:5000/api';
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [messages, setMessages] = useState([
         { sender: 'ai', text: 'Hi there! I am your CareSync AI Assistant. How can I help you today?' }
@@ -26,6 +27,64 @@ const FloatingAI = () => {
         scrollToBottom();
     }, [messages, isTyping]);
 
+    const callTriageApi = async (symptomsText) => {
+        const token = localStorage.getItem('caresync_user_token');
+        if (!token) {
+            return {
+                ok: false,
+                message: 'Please login first to use AI triage and specialist recommendation.'
+            };
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/ai/triage`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    symptoms: symptomsText,
+                    includeAiExplanation: true
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                return { ok: false, message: data.message || 'AI triage failed.' };
+            }
+
+            return { ok: true, data };
+        } catch (error) {
+            return { ok: false, message: 'Failed to connect to AI service. Please try again.' };
+        }
+    };
+
+    const formatTriageReply = (triageData) => {
+        const classifier = triageData?.classifier;
+        const ai = triageData?.aiExplanation;
+
+        let text = 'I could not generate a recommendation from the current input.';
+        if (classifier?.predictedSpecialist) {
+            const confidencePct = Math.round((classifier.confidence || 0) * 100);
+            text = `Recommended specialist: ${classifier.predictedSpecialist} (confidence ${confidencePct}%).`;
+        }
+
+        if (ai?.rationale) {
+            text += `\nWhy: ${ai.rationale}`;
+        }
+
+        if (ai?.urgency) {
+            text += `\nUrgency: ${ai.urgency}`;
+        }
+
+        if (ai?.nextStep) {
+            text += `\nNext step: ${ai.nextStep}`;
+        }
+
+        return text;
+    };
+
     const handleOptionClick = (optionText, responseText) => {
         setMessages(prev => [...prev, { sender: 'user', text: optionText }]);
         setIsTyping(true);
@@ -33,24 +92,34 @@ const FloatingAI = () => {
         setTimeout(() => {
             setIsTyping(false);
             setMessages(prev => [...prev, { sender: 'ai', text: responseText }]);
-        }, 1200);
+        }, 600);
     };
 
-    const handleSendMessage = (e) => {
+    const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!inputValue.trim()) return;
 
-        setMessages(prev => [...prev, { sender: 'user', text: inputValue }]);
+        const symptomsText = inputValue;
+        setMessages(prev => [...prev, { sender: 'user', text: symptomsText }]);
         setInputValue('');
         setIsTyping(true);
 
-        setTimeout(() => {
-            setIsTyping(false);
-            setMessages(prev => [...prev, { 
-                sender: 'ai', 
-                text: "I'm a demo AI assistant. In the future, I'll be connected to a real backend to process your request: '" + inputValue + "'." 
+        const triage = await callTriageApi(symptomsText);
+        setIsTyping(false);
+
+        if (!triage.ok) {
+            setMessages(prev => [...prev, {
+                sender: 'ai',
+                text: triage.message
             }]);
-        }, 1500);
+            return;
+        }
+
+        const finalReply = formatTriageReply(triage.data);
+        setMessages(prev => [...prev, {
+            sender: 'ai',
+            text: finalReply
+        }]);
     };
 
     return (
@@ -110,15 +179,15 @@ const FloatingAI = () => {
                             <div style={{ padding: '10px', background: 'white', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <p style={{ margin: '0 0 5px 5px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Suggested queries:</p>
                                 <button className="btn btn-outline" style={{ fontSize: '0.85rem', padding: '8px', justifyContent: 'flex-start' }} 
-                                    onClick={() => handleOptionClick('Symptom Checker', 'Please describe your symptoms briefly, and I will check possible causes. (Demo)')}>
+                                    onClick={() => handleOptionClick('Symptom Checker', 'Please type your symptoms in one message (for example: fever, cough, shortness of breath). I will recommend the most relevant specialist.')}>
                                     <i className="fas fa-stethoscope"></i> Symptom Checker
                                 </button>
                                 <button className="btn btn-outline" style={{ fontSize: '0.85rem', padding: '8px', justifyContent: 'flex-start' }}
-                                    onClick={() => handleOptionClick('Recommend a Doctor', 'I can recommend a doctor based on your current need. Are you looking for a general physician or a specialist? (Demo)')}>
+                                    onClick={() => handleOptionClick('Recommend a Doctor', 'Share your current symptoms and I will suggest which specialist you should consult first.')}>
                                     <i className="fas fa-user-md"></i> Recommend a Doctor
                                 </button>
                                 <button className="btn btn-outline" style={{ fontSize: '0.85rem', padding: '8px', justifyContent: 'flex-start' }}
-                                    onClick={() => handleOptionClick('Health Insights & Reports', 'I can summarize your recent lab reports. Which report would you like me to analyze? (Demo)')}>
+                                    onClick={() => handleOptionClick('Health Insights & Reports', 'For lab insights, upload a report in the lab portal and use the AI summary endpoint from your dashboard.')}>
                                     <i className="fas fa-flask"></i> Health Insights & Reports
                                 </button>
                             </div>

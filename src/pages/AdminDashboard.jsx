@@ -22,7 +22,7 @@ const AdminDashboard = () => {
     useEffect(() => {
         // Enforce basic admin auth before rendering real data using the real token
         if (!userInfo.token || userInfo.role !== 'Web Admin') {
-            navigate('/web-admin');
+            navigate('/login');
         } else {
             fetchCities();
             fetchHospitals();

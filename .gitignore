@@ -25,3 +25,12 @@ dist-ssr
 
 # CareSync custom ignores
 caresync ai implementation plan
+
+caresync-backend/model_artifacts/
+
+MONGODB_ATLAS_MIGRATION.md
+doc_text.txt
+docx_extracted/
+read_docx.js
+CareSync_AI_Final_Updated.docx
+Healthcare_5000_with_Specialist.csv

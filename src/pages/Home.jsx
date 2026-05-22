@@ -8,11 +8,12 @@ const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [cityId, setCityId] = useState('');
   const [hospital, setHospital] = useState('');
+  const [hospitalId, setHospitalId] = useState('');
   const [hospitalConfirmed, setHospitalConfirmed] = useState(false);
   const [cities, setCities] = useState([]);
   const [hospitals, setHospitals] = useState([]);
 
-  const images = ['/assets/slider1.png', '/assets/slider2.png', '/assets/slider3.png'];
+  const images = ['/assets/image 2.jpg', '/assets/image 4.jpg', '/assets/image 5.jpg'];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,12 +40,15 @@ const Home = () => {
   const handleCityChange = (e) => {
     setCityId(e.target.value);
     setHospital('');
+    setHospitalId('');
   };
 
   const handleConfirmHospital = () => {
-    if (hospital) {
+    if (hospitalId) {
       setHospitalConfirmed(true);
       localStorage.setItem('selectedHospital', hospital);
+      localStorage.setItem('selectedHospitalName', hospital);
+      localStorage.setItem('selectedHospitalId', hospitalId);
     }
   };
 
@@ -68,17 +72,22 @@ const Home = () => {
 
                 <div className="form-group">
                   <label htmlFor="hospital-select" style={{ display: 'block', textAlign: 'left', marginBottom: '0.5rem', fontWeight: '600' }}>Select Hospital</label>
-                  <select id="hospital-select" value={hospital} onChange={(e) => setHospital(e.target.value)} disabled={!cityId}>
+                  <select id="hospital-select" value={hospitalId} onChange={(e) => {
+                    const id = e.target.value;
+                    setHospitalId(id);
+                    const hObj = hospitals.find(h => h._id === id);
+                    setHospital(hObj ? hObj.name : '');
+                  }} disabled={!cityId}>
                     <option value="">-- First Select City --</option>
                     {hospitals
                       .filter(h => h.city && (h.city._id === cityId || h.city === cityId))
                       .map(h => (
-                        <option key={h._id} value={h.name}>{h.name} {h.type && h.type !== 'General' ? `(${h.type})` : ''}</option>
+                        <option key={h._id} value={h._id}>{h.name} {h.type && h.type !== 'General' ? `(${h.type})` : ''}</option>
                       ))}
                   </select>
                 </div>
 
-                <button id="btn-confirm-hospital" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} onClick={handleConfirmHospital} disabled={!hospital}>
+                <button id="btn-confirm-hospital" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} onClick={handleConfirmHospital} disabled={!hospitalId}>
                   Enter Hospital Portal <i className="fas fa-arrow-right"></i>
                 </button>
               </div>

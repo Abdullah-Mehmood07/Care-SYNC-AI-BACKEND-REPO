@@ -44,7 +44,8 @@ This repository acts as a monorepo dividing the client-side presentation from th
    ```bash
    cd caresync-backend
    npm install
-   # Create a .env file base on .env.example containing your MONGO_URI and JWT variables!
+   # Create a .env file based on .env.example containing:
+   # MONGO_URI, JWT_SECRET, GEMINI_API_KEY, GEMINI_MODEL, CLASSIFIER_DATASET_PATH
    npm run dev
    ```
 
@@ -56,8 +57,38 @@ This repository acts as a monorepo dividing the client-side presentation from th
    npm run dev
    ```
 
-## 📝 Future Implementation
-As noted in the `caresync ai implementation plan`, phase updates will securely involve LLM integrations (like `@google/generative-ai`) to transform static patient experiences into intelligent, data-driven encounters.
+## 🤖 AI + ML Workflow
+
+### 1) Train specialist classifier in Colab
+- Notebook: `notebooks/CareSync_Specialist_Classifier_Colab.ipynb`
+- Includes:
+  - Google Drive mount
+  - CSV training pipeline for `Healthcare_5000_with_Specialist.csv`
+  - Baseline classifier training (TF-IDF + logistic regression)
+  - Optional transformer fine-tuning path
+  - Artifact export to Drive (`.joblib` model + label map JSON)
+
+### 2) Backend AI services
+Backend provides:
+- Deterministic specialist classification based on symptom similarity against dataset records
+- Gemini-powered triage explanation (optional in triage endpoint)
+- Gemini-powered lab report summary generation
+
+### 3) API endpoints (AI + reports)
+- `GET /api/ai/health`
+- `POST /api/ai/classify-specialist`
+- `POST /api/ai/triage`
+- `POST /api/ai/summarize-lab/:reportId`
+- `POST /api/upload` (stores file + report metadata)
+- `GET /api/upload/my-reports`
+- `GET /api/upload/reports`
+
+### 4) End-to-end flow
+1. User enters symptoms in AI assistant
+2. Backend classifier predicts specialist
+3. Gemini adds rationale, urgency, and next-step guidance
+4. Patient can upload/view lab reports
+5. Authorized users can generate and persist AI lab summaries
 
 ## 📄 License
 ISC

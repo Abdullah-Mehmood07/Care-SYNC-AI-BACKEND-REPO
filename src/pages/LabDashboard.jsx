@@ -7,6 +7,8 @@ const LabDashboard = () => {
     const userInfo = getUserInfo();
     const [hospitalName, setHospitalName] = useState('Loading...');
     const [uploadFile, setUploadFile] = useState(null);
+    const [patientId, setPatientId] = useState('');
+    const [testType, setTestType] = useState('Blood Count (CBC)');
 
     useEffect(() => {
         if (!userInfo.token || userInfo.role !== 'Lab Admin') {
@@ -51,6 +53,10 @@ const LabDashboard = () => {
         
         const formData = new FormData();
         formData.append('report', uploadFile);
+        if (patientId.trim()) {
+            formData.append('patientId', patientId.trim());
+        }
+        formData.append('testType', testType);
         
         try {
             const res = await fetch('http://localhost:5000/api/upload', {
@@ -63,8 +69,9 @@ const LabDashboard = () => {
             
             if (res.ok) {
                 const data = await res.json();
-                alert(`Report Uploaded and Notification Sent to Patient!\nSaved at: ${data.filePath}`);
+                alert(`Report uploaded successfully.\nReport ID: ${data.reportId}\nSaved at: ${data.filePath}`);
                 setUploadFile(null); // Reset after upload
+                setPatientId('');
             } else {
                 const err = await res.json();
                 alert(`Upload failed: ${err.message}`);
@@ -101,13 +108,13 @@ const LabDashboard = () => {
                     <div className="glass-card" style={{ maxWidth: '600px', margin: '1rem 0' }}>
                         <form onSubmit={handleUpload}>
                             <div className="form-group" style={{ marginBottom: '1rem' }}>
-                                <label>Patient ID / Name</label>
-                                <input type="text" placeholder="Search Patient..." required />
+                                <label>Patient Database ID (optional)</label>
+                                <input type="text" placeholder="MongoDB Patient ObjectId" value={patientId} onChange={(e) => setPatientId(e.target.value)} />
                             </div>
 
                             <div className="form-group" style={{ marginBottom: '1rem' }}>
                                 <label>Test Type</label>
-                                <select>
+                                <select value={testType} onChange={(e) => setTestType(e.target.value)}>
                                     <option>Blood Count (CBC)</option>
                                     <option>X-Ray</option>
                                     <option>MRI</option>

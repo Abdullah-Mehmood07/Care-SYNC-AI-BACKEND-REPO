@@ -11,10 +11,11 @@ const HospitalDashboard = () => {
     // Data States
     const [doctors, setDoctors] = useState([]);
     const [services, setServices] = useState([]);
-    const [newDoctorData, setNewDoctorData] = useState({ name: '', specialty: '', status: 'Active' });
+    const [newDoctorData, setNewDoctorData] = useState({ name: '', specialty: '', status: 'Active', emergencyExtension: '' });
     const [newServiceData, setNewServiceData] = useState({ name: '', description: '', price: 0 });
     const [newLabData, setNewLabData] = useState({ name: '', email: '', password: '' });
     const [newPaData, setNewPaData] = useState({ name: '', email: '', password: '', doctorId: '' });
+    const [newPatientData, setNewPatientData] = useState({ name: '', national_id: '', email: '', password: '', mrNumber: '' });
     const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '' });
 
     useEffect(() => {
@@ -86,7 +87,7 @@ const HospitalDashboard = () => {
             });
 
             if (res.ok) {
-                setNewDoctorData({ name: '', specialty: '', status: 'Active' });
+                setNewDoctorData({ name: '', specialty: '', status: 'Active', emergencyExtension: '' });
                 
                 const refreshedRes = await fetch(`http://localhost:5000/api/doctors/hospital/${userInfo.hospitalId}`, {
                     headers: { 'Authorization': `Bearer ${userInfo.token}` }
@@ -95,6 +96,27 @@ const HospitalDashboard = () => {
                 setDoctors(Array.isArray(data) ? data : []);
                 
                 alert('Doctor added successfully!');
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.message}`);
+            }
+        } catch (error) {
+            alert('Failed to connect to the backend server.');
+        }
+    };
+
+    const handleDeleteDoctor = async (id) => {
+        if (!window.confirm('Are you sure you want to remove this doctor?')) return;
+        try {
+            const res = await fetch(`http://localhost:5000/api/doctors/${id}`, {
+                method: 'DELETE',
+                headers: { 
+                    'Authorization': `Bearer ${userInfo.token}`
+                }
+            });
+            if (res.ok) {
+                setDoctors(doctors.filter(d => d._id !== id));
+                alert('Doctor removed successfully.');
             } else {
                 const err = await res.json();
                 alert(`Error: ${err.message}`);
@@ -217,6 +239,43 @@ const HospitalDashboard = () => {
         }
     };
 
+    const handleRegisterPatient = async (e) => {
+        e.preventDefault();
+
+        if (!newPatientData.national_id || !newPatientData.name || !newPatientData.email || !newPatientData.password) {
+            return alert('Name, National ID, Email and Password are required.');
+        }
+
+        try {
+            const res = await fetch('http://localhost:5000/api/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userInfo.token}`
+                },
+                body: JSON.stringify({
+                    name: newPatientData.name,
+                    email: newPatientData.email,
+                    password: newPatientData.password,
+                    role: 'Patient',
+                    national_id: newPatientData.national_id,
+                    hospitalId: userInfo.hospitalId,
+                    mrNumber: newPatientData.mrNumber || undefined
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(`Patient profile registered. GHID: ${data.ghid || 'Generated'}`);
+                setNewPatientData({ name: '', national_id: '', email: '', password: '', mrNumber: '' });
+            } else {
+                alert(`Error: ${data.message || 'Failed to register patient'}`);
+            }
+        } catch (error) {
+            alert('Failed to connect to the backend server.');
+        }
+    };
+
     return (
         <div style={{ paddingBottom: '4rem' }}>
             <div style={{ background: 'var(--white)', padding: '1rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -259,8 +318,9 @@ const HospitalDashboard = () => {
                             <h2>Manage Doctor Profiles</h2>
                             
                             <form onSubmit={handleAddDoctor} className="glass-card" style={{ marginBottom: '2rem', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', padding: '1rem' }}>
-                                <input type="text" placeholder="Dr. Name" required value={newDoctorData.name} onChange={(e) => setNewDoctorData({...newDoctorData, name: e.target.value})} style={{ flex: 1, minWidth: '200px' }} />
-                                <input type="text" placeholder="Specialty (e.g. Cardiology)" required value={newDoctorData.specialty} onChange={(e) => setNewDoctorData({...newDoctorData, specialty: e.target.value})} style={{ flex: 1, minWidth: '200px' }} />
+                                <input type="text" placeholder="Dr. Name" required value={newDoctorData.name} onChange={(e) => setNewDoctorData({...newDoctorData, name: e.target.value})} style={{ flex: 1, minWidth: '180px' }} />
+                                <input type="text" placeholder="Specialty (e.g. Cardiology)" required value={newDoctorData.specialty} onChange={(e) => setNewDoctorData({...newDoctorData, specialty: e.target.value})} style={{ flex: 1, minWidth: '180px' }} />
+                                <input type="text" placeholder="Emergency Ext" value={newDoctorData.emergencyExtension} onChange={(e) => setNewDoctorData({...newDoctorData, emergencyExtension: e.target.value})} style={{ flex: 1, minWidth: '120px' }} />
                                 <select value={newDoctorData.status} onChange={(e) => setNewDoctorData({...newDoctorData, status: e.target.value})}>
                                     <option value="Active">Active</option>
                                     <option value="Inactive">Inactive</option>
@@ -276,6 +336,7 @@ const HospitalDashboard = () => {
                                             <tr style={{ borderBottom: '1px solid #eee' }}>
                                                 <th style={{ padding: '10px' }}>Name</th>
                                                 <th>Specialty</th>
+                                                <th>Emergency Ext</th>
                                                 <th>Status</th>
                                                 <th>Actions</th>
                                             </tr>
@@ -285,9 +346,10 @@ const HospitalDashboard = () => {
                                                 <tr key={doc._id}>
                                                     <td style={{ padding: '10px' }}>{doc.name}</td>
                                                     <td>{doc.specialty}</td>
+                                                    <td>{doc.emergencyExtension || 'None'}</td>
                                                     <td style={{ color: doc.status === 'Active' ? 'green' : 'gray' }}>{doc.status}</td>
                                                     <td>
-                                                        <button className="btn btn-outline" style={{ padding: '2px 8px', fontSize: '0.8rem', marginRight: '5px' }}>Edit</button>
+                                                        <button onClick={() => handleDeleteDoctor(doc._id)} className="btn btn-outline" style={{ padding: '2px 8px', fontSize: '0.8rem', color: '#DC2626', borderColor: '#FCA5A5' }}>Delete</button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -302,15 +364,21 @@ const HospitalDashboard = () => {
                         <section className="panel-section active">
                             <h2>Register New Patient</h2>
                             <div className="glass-card" style={{ maxWidth: '600px' }}>
-                                <form onSubmit={(e) => { e.preventDefault(); alert('Patient Registered'); }}>
-                                    <div className="form-group" style={{ marginBottom: '1rem' }}><input type="text" placeholder="Full Name" /></div>
-                                    <div className="form-group" style={{ marginBottom: '1rem' }}><input type="text" placeholder="CNIC / ID" /></div>
-                                    <div className="form-group" style={{ marginBottom: '1rem' }}><input type="tel" placeholder="Contact Number" /></div>
+                                <form onSubmit={handleRegisterPatient}>
                                     <div className="form-group" style={{ marginBottom: '1rem' }}>
-                                        <select>
-                                            <option>Male</option>
-                                            <option>Female</option>
-                                        </select>
+                                        <input type="text" placeholder="Full Name" value={newPatientData.name} onChange={(e) => setNewPatientData({ ...newPatientData, name: e.target.value })} required />
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <input type="text" placeholder="National ID (13 digits)" value={newPatientData.national_id} onChange={(e) => setNewPatientData({ ...newPatientData, national_id: e.target.value })} required pattern="[0-9]{13}" />
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <input type="email" placeholder="Patient Email Address" value={newPatientData.email} onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })} required />
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <input type="password" placeholder="Temporary Password" value={newPatientData.password} onChange={(e) => setNewPatientData({ ...newPatientData, password: e.target.value })} required />
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                        <input type="text" placeholder="Hospital MR Number (Optional)" value={newPatientData.mrNumber} onChange={(e) => setNewPatientData({ ...newPatientData, mrNumber: e.target.value })} />
                                     </div>
                                     <button type="submit" className="btn btn-primary">Create Patient Record</button>
                                 </form>
